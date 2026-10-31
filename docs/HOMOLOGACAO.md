@@ -28,6 +28,8 @@ O remoto inicialmente continha apenas README na main (`57636ea`). A branch de re
 | Chromium E2E | 10/10, sem testes ignorados |
 | Axe | Sem violações nos critérios WCAG A/AA selecionados em sete telas; não substitui avaliação manual |
 | Migrações e roles | 14 migrações; segunda execução sem reaplicar migrações |
+| Preflight local | 16/16 (não equivale a staging externo pronto) |
+| Build Docker Node 22 | Targets web e worker concluídos, com TLS verificado |
 
 Os cenários E2E cobrem saúde e site, login incorreto/correto, pergunta com fonte e PDF autorizado, pergunta sem evidência, isolamento entre corretoras, bloqueio da plataforma para usuário comum, criação/convite/suspensão/reativação de corretora, qualificação de contato e upload processado pelo worker.
 
