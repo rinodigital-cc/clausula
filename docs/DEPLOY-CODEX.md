@@ -26,4 +26,13 @@ Host Docker compatível ou reengenharia para R2/S3 + jobs agendados/filas, DNS d
 
 Execute `node scripts/preflight-homologacao.mjs` no diretório do aplicativo, com o ambiente de homologação configurado. O script informa dependências/configurações ausentes sem imprimir segredos. Ele não prova que `npm test` ou `npm run build` passaram.
 
-**Descobertas da auditoria conectada:** o Supabase `eyfhdoyvmywdzknpxxqn` voltou a `ACTIVE_HEALTHY`, mas tem 16 tabelas de um schema anterior (`organizations`, `memberships`, `documents` etc.). **NÃO** executar as migrações desse aplicativo diretamente nele sem comparar o schema e definir uma estratégia de migração sem perda de dados. `npm ci` não terminou no ambiente da auditoria. O projeto Vercel `apoio-seguro` ainda aponta para Vite e tem zero deploys; não publicar essa arquitetura sem migrar o armazenamento para object storage e o worker para infraestrutura compatível. O painel `/plataforma` continua pendente. Usar staging separado antes de produção.
+### Histórico recebido no pacote — não representa o estado atual
+
+O relato anterior registrava Supabase com schema legado, instalação de dependências inconclusa, projeto Vercel configurado para Vite sem deploys e painel `/plataforma` pendente. Essas observações não foram verificadas remotamente nesta sessão e não devem ser usadas como diagnóstico atual. Qualquer banco legado exige comparação do schema e plano de migração sem perda de dados antes de alterações.
+
+### Estado atualizado da revisão
+
+- O painel `/plataforma` foi implementado e os comandos de instalação/build foram validados no Codex; veja `HOMOLOGACAO.md`.
+- O usuário informou que a prévia do projeto Vercel `apoio-seguro` está com build aprovado. Essa informação substitui o relato histórico de zero deploys; não houve nova publicação ou consulta à Vercel neste diagnóstico.
+- A execução completa continua exigindo validar banco/roles, persistência dos PDFs e processamento pelo worker no ambiente escolhido. O build aprovado não exercita esses fluxos de runtime.
+- O diagnóstico de conectividade do GitHub e as tarefas que podem avançar localmente estão em `DIAGNOSTICO-GITHUB.md`.
