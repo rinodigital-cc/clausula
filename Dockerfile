@@ -13,9 +13,9 @@ RUN npm run build
 FROM node:22-bookworm-slim AS web
 WORKDIR /app
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0
-COPY --from=build /app/.next/standalone ./
-COPY --from=build /app/.next/static ./.next/static
-COPY --from=build /app/public ./public
+COPY --from=build --chown=node:node /app/.next/standalone ./
+COPY --from=build --chown=node:node /app/.next/static ./.next/static
+COPY --from=build --chown=node:node /app/public ./public
 RUN mkdir -p /data/pdf && chown node:node /data/pdf
 USER node
 EXPOSE 3000
@@ -23,9 +23,10 @@ CMD ["node", "server.js"]
 FROM deps AS worker
 WORKDIR /app
 ENV NODE_ENV=production
-COPY --from=build /app/services ./services
-COPY --from=build /app/src ./src
-COPY --from=build /app/tsconfig.json ./tsconfig.json
+COPY --from=build --chown=node:node /app/package.json /app/package-lock.json ./
+COPY --from=build --chown=node:node /app/services ./services
+COPY --from=build --chown=node:node /app/src ./src
+COPY --from=build --chown=node:node /app/tsconfig.json ./tsconfig.json
 RUN mkdir -p /data/pdf && chown node:node /data/pdf
 USER node
 CMD ["node", "--import", "tsx", "services/worker/index.ts"]

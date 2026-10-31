@@ -30,6 +30,7 @@ O remoto inicialmente continha apenas README na main (`57636ea`). A branch de re
 | Migrações e roles | 14 migrações; segunda execução sem reaplicar migrações |
 | Preflight local | 16/16 (não equivale a staging externo pronto) |
 | Build Docker Node 22 | Targets web e worker concluídos, com TLS verificado |
+| Smoke Docker | Saúde com banco, página inicial, fonte e ícone HTTP 200; worker `--once` encerrou com sucesso usando usuário node |
 
 Os cenários E2E cobrem saúde e site, login incorreto/correto, pergunta com fonte e PDF autorizado, pergunta sem evidência, isolamento entre corretoras, bloqueio da plataforma para usuário comum, criação/convite/suspensão/reativação de corretora, qualificação de contato e upload processado pelo worker.
 
@@ -40,6 +41,7 @@ Os cenários E2E cobrem saúde e site, login incorreto/correto, pergunta com fon
 - Trava dos testes destrutivos para banco local descartável; executor SQL preserva erros do processo e exige o total esperado de casos.
 - `EMAIL_TRANSPORT=file` prevalece mesmo se houver uma chave no ambiente; teste comprova ausência de chamada HTTP e que a mensagem não é marcada como enviada.
 - Inicialização standalone com assets e caminho absoluto compartilhado de armazenamento. O teste de PDF detectou e confirmou a correção da diferença de diretório entre web e worker.
+- Imagens Docker mantêm `USER node` e copiam arquivos com a propriedade correta, incluindo arquivos extraídos de ZIP com permissões restritas.
 - Setup local repetível, workflow de CI e instruções de Codex Cloud.
 - `.gitignore` cobre variantes de `.env`, dependências, builds, resultados e arquivos de chave. `.env.example` é somente um modelo, sem credenciais reais; contas dos testes são SIMULAÇÃO.
 
