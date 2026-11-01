@@ -1,0 +1,123 @@
+/* ==========================================================================
+   ApoIA Seguro — tokens do Design System (v3 “Fluida”, out/2026)
+
+   Regra: componente usa token SEMÂNTICO, nunca hexadecimal solto.
+
+   Linguagem visual “Fluida”
+   - Camadas em vez de caixas: superfícies brancas que flutuam sobre um fundo
+     com brilho suave (aura azul + verde). Sombra difusa no lugar de borda.
+   - Raios generosos, tipografia com contraste forte (manchete x corpo).
+   - Movimento com significado: a resposta se monta em etapas e o grifo se
+     “pinta” no documento — mostra a IA trabalhando e conferindo.
+
+   Dois sinais com papéis diferentes, e nunca trocados:
+   - AZUL (marca e IA): identidade, ações, foco e o “IA” do nome.
+   - VERDE EVIDÊNCIA: só o que vem de documento (trecho grifado, número da
+     citação, fonte). Assim a cor mostra o que é a IA falando e o que está
+     escrito no documento. ÂMBAR: ressalva antes de responder ao cliente.
+
+   Contraste (WCAG 2.2 AA) anotado ao lado de cada cor de texto.
+   Modo escuro: fora desta versão, de propósito.
+   ========================================================================== */
+:root {
+  /* Marca */
+  --brand-navy: #12305c;          /* 13,1:1 com branco */
+  --brand-ia: #2f6be0;            /* 4,9:1 com branco */
+  --brand-ia-light: #8db8ff;      /* sobre o navy: 6,5:1 */
+
+  /* Superfícies e camadas */
+  --canvas: #f4f7fc;
+  --surface: #ffffff;
+  --surface-glass: rgba(255, 255, 255, 0.78);
+  --surface-soft: #f7f9fd;        /* dentro de uma superfície (trecho, lista) */
+  --sunken: #eef2f8;
+  --line: #e3e9f2;
+  --line-strong: #cdd6e3;
+  --ring: rgba(15, 30, 60, 0.06); /* contorno de 1px por sombra, no lugar de borda */
+  --aura-blue: rgba(59, 123, 255, 0.16);
+  --aura-green: rgba(18, 191, 160, 0.12);
+
+  /* Texto (sobre --surface: ink 17:1 · body 10:1 · muted 5,9:1 · faint 4,9:1) */
+  --ink: #0b1626;
+  --ink-body: #334155;
+  --ink-muted: #586577;
+  --ink-faint: #626e80;
+
+  /* Ação */
+  --action: #2459e0;              /* 5,9:1 com branco */
+  --action-2: #3b7bff;            /* ponta do degradê do botão principal */
+  --action-hover: #1b4db1;
+  --on-action: #ffffff;
+  --accent: #2459e0;
+  --accent-bg: #eaf1ff;           /* --accent sobre ele: 5,2:1 */
+  --accent-line: #c9d8f7;
+  --focus: #2f6be0;
+
+  /* Evidência (o que vem de documento) */
+  --evidence: #0f6e68;            /* texto e preenchimento do número: 6,1:1 */
+  --evidence-dot: #12a08f;        /* forma, ≥3:1 */
+  --evidence-bg: #e3f8f1;
+  --evidence-bg-2: #f3fcf9;
+  --evidence-line: #bfe3da;
+  --highlight: #bff0e2;           /* grifo do trecho citado */
+
+  /* Funcionais — sempre com ícone e texto */
+  --success: #1e7a4c;
+  --success-bg: #e9f7ef;
+  --success-line: #bfe2cd;
+  --warn-ink: #5a3a00;            /* 9,4:1 sobre --warn-bg */
+  --warn-icon: #8a5a00;
+  --warn-chip: #f2b743;           /* número de ressalva (forma) */
+  --warn-bg: #fff4dc;
+  --warn-bg-2: #fff9ee;
+  --warn-line: #f2d9a6;
+  --danger: #b42318;
+  --danger-bg: #fdecea;
+  --danger-line: #f1c4bf;
+  --info-ink: #1f4e79;
+  --info-bg: #eef4fb;
+  --info-line: #c7d9ee;
+
+  /* Tipografia
+     - Inter (cv08: I com serifa): interface e manchetes.
+     - Newsreader: SOMENTE trecho de documento.
+     - JetBrains Mono: cláusula, página, versão, vigência. */
+  --font-sans: InterVariable, "Inter Variable", Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-heading: var(--font-sans);
+  --font-document: "Newsreader Variable", Newsreader, Georgia, "Times New Roman", serif;
+  --font-display: var(--font-document);
+  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --text-xs: 0.75rem;   /* 12 */
+  --text-sm: 0.875rem;  /* 14 */
+  --text-md: 1rem;      /* 16 */
+  --text-lg: 1.125rem;  /* 18 */
+  --text-xl: 1.375rem;  /* 22 — resposta */
+  --text-2xl: 1.875rem; /* 30 */
+  --text-3xl: clamp(2rem, 3.4vw, 2.625rem);  /* 32–42 — manchete da pergunta */
+  --text-4xl: clamp(2.5rem, 5vw, 4rem);
+
+  /* Espaço (escala de 4) */
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 20px; --s-6: 24px;
+  --s-8: 32px; --s-10: 40px; --s-12: 48px; --s-16: 64px; --s-20: 80px; --s-24: 96px;
+
+  /* Raio */
+  --r-xs: 6px; --r-sm: 9px; --r-md: 12px; --r-lg: 16px; --r-xl: 22px; --r-2xl: 26px; --r-full: 999px;
+
+  /* Elevação: difusa e azulada, nunca cinza dura */
+  --shadow-1: 0 1px 2px rgba(14, 42, 85, 0.06), 0 0 0 1px var(--ring);
+  --shadow-2: 0 14px 34px -22px rgba(14, 42, 85, 0.35), 0 0 0 1px var(--ring);
+  --shadow-3: 0 28px 64px -30px rgba(14, 42, 85, 0.42), 0 0 0 1px var(--ring);
+  --shadow-action: 0 10px 22px -10px rgba(36, 89, 224, 0.85);
+  --shadow-evidence: 0 6px 14px -6px rgba(15, 110, 104, 0.7);
+
+  /* Movimento */
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-inout: cubic-bezier(0.6, 0, 0.2, 1);
+  --dur-1: 140ms; --dur-2: 220ms; --dur-3: 420ms; --dur-4: 700ms;
+
+  /* Grid */
+  --container: 1200px;
+  --gutter: max(16px, 3.2vw);
+  --tap: 44px;
+}
