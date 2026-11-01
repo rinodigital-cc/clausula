@@ -23,8 +23,10 @@ function pool(envVar: string, max: number): Pool {
   if (existing) return existing;
   const url = process.env[envVar];
   if (!url) throw new Error(`${envVar} não definida`);
+  // O Vercel escala instancias independentes. Uma conexao por pool/instancia
+  // evita esgotar as conexoes do Supavisor; no Docker mantemos o max original.
   const p = postgres(url, {
-    max,
+    max: process.env.VERCEL ? 1 : max,
     idle_timeout: 20,
     connect_timeout: 10,
     // Pooler em modo transação quebra prepared statements nomeados.
