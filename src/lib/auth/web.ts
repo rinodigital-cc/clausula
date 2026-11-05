@@ -1,4 +1,7 @@
 import "server-only";
+import { authClient } from "@/lib/supabase/server";
+import { supabaseAuthEnabled } from "@/lib/supabase/config";
+import { provisionIdentity } from "@/lib/supabase/provision";
 import { cache } from "react";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -58,6 +61,35 @@ export async function login(emailRaw: string, password: string): Promise<LoginRe
     return { ok: false, error: "Muitas tentativas. Espere 15 minutos ou redefina a senha." };
   }
 
+  if (supabaseAuthEnabled()) {
+    const client = await authClient();
+    let result = await client.auth.signInWithPassword({ email, password });
+    // Migração gradual: só após provar a senha legada e só se o UUID ainda não existir no Auth.
+    if (result.error && process.env.SUPABASE_AUTH_SECRET_KEY) {
+      const [legacy] = await withBootstrap("migração de identidade", db =>
+        db<{ id: string; email: string; password_hash: string | null }[]>`SELECT id, email::text, password_hash FROM users WHERE email = ${email} AND deleted_at IS NULL`);
+      if (legacy && await verifyPassword(password, legacy.password_hash)) {
+        try {
+          const created = await provisionIdentity(legacy, password);
+          if (created) result = await client.auth.signInWithPassword({ email, password });
+        } catch { /* Não sobrescrever identidade conflitante. */ }
+      }
+    }
+    if (result.error || !result.data.user) {
+      registerFailure(email);
+      return { ok: false, error: "E-mail ou senha incorretos." };
+    }
+    const [known] = await withBootstrap("identidade Supabase", db =>
+      db`SELECT id FROM users WHERE id = ${result.data.user!.id} AND deleted_at IS NULL`);
+    if (!known) {
+      await client.auth.signOut({ scope: "local" });
+      return { ok: false, error: "Conta sem acesso à plataforma. Fale com a administração." };
+    }
+    attempts.delete(email);
+    await startSession(result.data.user.id);
+    return { ok: true };
+  }
+
   const [user] = await withBootstrap("login", (db) =>
     db<{ id: string; password_hash: string | null }[]>`
       SELECT id, password_hash FROM users WHERE email = ${email} AND deleted_at IS NULL
@@ -76,6 +108,10 @@ export async function login(emailRaw: string, password: string): Promise<LoginRe
 
 /** Cria sessão e grava o cookie. Escolhe a primeira corretora ativa como ativa. */
 export async function startSession(userId: string, preferredOrgId?: string): Promise<void> {
+  if (supabaseAuthEnabled()) {
+    const { data: { user }, error } = await (await authClient()).auth.getUser();
+    if (error || user?.id !== userId) throw new Error("Identidade não verificada.");
+  }
   const token = newToken();
   const h = await headers();
   const ua = (h.get("user-agent") ?? "").slice(0, 300);
@@ -114,6 +150,10 @@ export async function logout(): Promise<void> {
     );
   }
   jar.delete(SESSION_COOKIE);
+  if (supabaseAuthEnabled()) {
+    const { error } = await (await authClient()).auth.signOut({ scope: "local" });
+    if (error) throw new Error("Sessão local encerrada. Não foi possível confirmar a saída no serviço de autenticação.");
+  }
 }
 
 /** Usuário corrente (uma consulta por requisição, via cache do React). */
@@ -141,6 +181,10 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
     `,
   );
   if (!row) return null;
+  if (supabaseAuthEnabled()) {
+    const { data: { user }, error } = await (await authClient()).auth.getUser();
+    if (error || user?.id !== row.user_id) return null;
+  }
   return {
     sessionId: row.session_id,
     userId: row.user_id,

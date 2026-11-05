@@ -1,4 +1,7 @@
 import "server-only";
+import { supabaseAuthEnabled } from "@/lib/supabase/config";
+import { provisionIdentity } from "@/lib/supabase/provision";
+import { authClient } from "@/lib/supabase/server";
 import { withTenant, withBootstrap, type PrivilegedSql } from "@/lib/db/client";
 import type { Session } from "@/lib/auth/session";
 import { recordAudit } from "@/lib/audit";
@@ -183,6 +186,11 @@ export async function registerAndAccept(input: {
         VALUES (${invite.email}, ${name}, ${passwordHash}, now())
         RETURNING id
       `;
+      if (supabaseAuthEnabled()) {
+        await provisionIdentity({ id: user!.id, email: invite.email }, input.password);
+        const { error } = await (await authClient()).auth.signInWithPassword({ email: invite.email, password: input.password });
+        if (error) throw new Error("Não foi possível autenticar o novo acesso.");
+      }
       const { orgId } = await acceptInTx(tx as unknown as PrivilegedSql, input.token, user!.id);
       return { userId: user!.id, orgId };
     }),

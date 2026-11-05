@@ -1,4 +1,7 @@
 import "server-only";
+import { authClient } from "@/lib/supabase/server";
+import { supabaseAuthEnabled } from "@/lib/supabase/config";
+import { provisionIdentity } from "@/lib/supabase/provision";
 import { withBootstrap } from "@/lib/db/client";
 import { hashPassword, hashToken, newToken, passwordProblem } from "@/lib/auth/password";
 import { appUrl, enqueueEmail, passwordResetEmail } from "@/lib/email/outbox";
@@ -12,6 +15,16 @@ const RESET_TTL_MS = 60 * 60 * 1000;
 export async function requestPasswordReset(emailRaw: string): Promise<void> {
   const email = (emailRaw ?? "").trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
+  if (supabaseAuthEnabled()) {
+    // Resposta genérica inclusive para contas ainda não provisionadas.
+    const [user] = await withBootstrap("recuperação Supabase", db =>
+      db<{ id: string; email: string }[]>`SELECT id, email::text FROM users WHERE email = ${email} AND deleted_at IS NULL`);
+    if (!user) return;
+    if (process.env.SUPABASE_AUTH_SECRET_KEY) await provisionIdentity(user);
+    const { error } = await (await authClient()).auth.resetPasswordForEmail(email, { redirectTo: appUrl("/auth/callback") });
+    if (error) console.error(JSON.stringify({ event: "auth_recovery_failed", code: error.code }));
+    return;
+  }
   const token = newToken();
   await withBootstrap("pedido de redefinição de senha", (db) =>
     db.begin(async (tx) => {
@@ -43,7 +56,10 @@ export async function checkResetToken(token: string): Promise<boolean> {
 export async function resetPassword(token: string, password: string): Promise<{ userId: string }> {
   const problem = passwordProblem(password);
   if (problem) throw new Error(problem);
-  const passwordHash = await hashPassword(password);
+  const supabase = supabaseAuthEnabled() ? await authClient() : null;
+  const identity = supabase ? await supabase.auth.getUser() : null;
+  if (supabase && (identity?.error || !identity?.data.user)) throw new Error("Link inválido ou expirado. Peça um novo.");
+  const passwordHash = supabase ? null : await hashPassword(password);
   return withBootstrap("redefinição de senha", (db) =>
     db.begin(async (tx) => {
       const [row] = await tx<{ id: string; user_id: string }[]>`
@@ -52,6 +68,13 @@ export async function resetPassword(token: string, password: string): Promise<{ 
         FOR UPDATE
       `;
       if (!row) throw new Error("Link inválido ou expirado. Peça um novo.");
+      if (supabase) {
+        if (identity?.data.user?.id !== row.user_id) throw new Error("Link inválido ou expirado. Peça um novo.");
+        const { error } = await supabase.auth.updateUser({ password });
+        if (error) throw new Error("Não foi possível atualizar a senha. Peça um novo link.");
+        const signedOut = await supabase.auth.signOut({ scope: "others" });
+        if (signedOut.error) throw new Error("Não foi possível encerrar as outras sessões. Tente novamente.");
+      }
       await tx`UPDATE users SET password_hash = ${passwordHash}, email_verified_at = coalesce(email_verified_at, now()) WHERE id = ${row.user_id}`;
       await tx`UPDATE password_resets SET used_at = now() WHERE id = ${row.id}`;
       await tx`UPDATE sessions SET revoked_at = now() WHERE user_id = ${row.user_id} AND revoked_at IS NULL`;

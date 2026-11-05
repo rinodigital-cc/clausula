@@ -37,7 +37,12 @@ export async function logoutAction(): Promise<void> {
 }
 
 export async function requestResetAction(_: FormState, form: FormData): Promise<FormState> {
-  await requestPasswordReset(String(form.get("email") ?? ""));
+  try {
+    await requestPasswordReset(String(form.get("email") ?? ""));
+  } catch {
+    // Nunca revelar a existência de uma conta por erro de provisionamento.
+    console.error(JSON.stringify({ event: "auth_recovery_unavailable" }));
+  }
   return {
     ok: true,
     message: "Se houver uma conta com este e-mail, enviamos um link para redefinir a senha. Ele vale por 1 hora.",

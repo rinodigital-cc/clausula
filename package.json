@@ -14,12 +14,13 @@
     "fixtures:pdfs": "tsx tests/fixtures/gerar-pdfs.ts",
     "typecheck": "tsc --noEmit",
     "test:isolation": "tsx tests/run-sql.ts tests/sql/isolation.sql",
-    "test:unit": "node --import tsx tests/unit/nucleo.legacy.test.ts && node --import tsx --test tests/unit/safety.test.ts tests/unit/email.test.ts tests/unit/storage.test.ts",
+    "test:unit": "node --import tsx tests/unit/nucleo.legacy.test.ts && node --import tsx --test tests/unit/safety.test.ts tests/unit/email.test.ts tests/unit/storage.test.ts && npm run test:auth",
     "test:integration": "NODE_ENV=test node --conditions=react-server --import tsx tests/integration/p0.ts",
     "test": "npm run typecheck && npm run test:unit && npm run test:isolation && npm run test:integration",
     "lint": "eslint . --max-warnings=0",
     "cloud:setup": "node scripts/codex-cloud.mjs setup",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:auth": "node --import tsx --test tests/unit/supabase-auth.test.ts"
   },
   "engines": {
     "node": ">=22"
@@ -29,6 +30,8 @@
     "@fontsource-variable/inter": "^5.3.0",
     "@fontsource-variable/jetbrains-mono": "^5.3.0",
     "@fontsource-variable/newsreader": "^5.3.0",
+    "@supabase/ssr": "0.12.7",
+    "@supabase/supabase-js": "2.119.0",
     "@vercel/queue": "0.11.0",
     "next": "^16.4.3",
     "pdfjs-dist": "^4.10.38",
