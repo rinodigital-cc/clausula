@@ -14,7 +14,7 @@
     "fixtures:pdfs": "tsx tests/fixtures/gerar-pdfs.ts",
     "typecheck": "tsc --noEmit",
     "test:isolation": "tsx tests/run-sql.ts tests/sql/isolation.sql",
-    "test:unit": "tsx tests/unit/nucleo.legacy.test.ts && node --import tsx --test tests/unit/safety.test.ts tests/unit/email.test.ts",
+    "test:unit": "node --import tsx tests/unit/nucleo.legacy.test.ts && node --import tsx --test tests/unit/safety.test.ts tests/unit/email.test.ts tests/unit/storage.test.ts",
     "test:integration": "NODE_ENV=test node --conditions=react-server --import tsx tests/integration/p0.ts",
     "test": "npm run typecheck && npm run test:unit && npm run test:isolation && npm run test:integration",
     "lint": "eslint . --max-warnings=0",

@@ -15,13 +15,15 @@ test("saúde, páginas públicas e acesso anônimo", async ({ page, request }) =
   const health = await request.get("/api/saude");
   expect(health.status()).toBe(200);
   expect(await health.json()).toMatchObject({ ok: true, db: "ok" });
-  for (const route of ["/", "/contato", "/privacidade"]) {
+  for (const route of ["/", "/contato", "/privacidade", "/login"]) {
     const response = await page.goto(route);
     expect(response?.status()).toBe(200);
     await expect(page.locator("h1")).toBeVisible();
   }
-  await page.goto("/plataforma");
-  await expect(page).toHaveURL(/\/entrar/);
+  for (const route of ["/admin", "/plataforma"]) {
+    await page.goto(route);
+    await expect(page).toHaveURL(/\/entrar/);
+  }
 });
 
 test("login rejeita senha errada e aceita a conta local", async ({ page }) => {
@@ -164,4 +166,12 @@ test("acessibilidade das telas públicas, consulta e plataforma", async ({ page 
   await page.context().clearCookies();
   await login(page, "operacao@apoia.test");
   for (const route of ["/plataforma", "/plataforma/nova", "/plataforma/interessados"]) { await page.goto(route); await scan(); }
+});
+
+
+test("/admin encaminha operador para a administração central", async ({ page }) => {
+  await login(page, "operacao@apoia.test");
+  await page.goto("/admin");
+  await expect(page).toHaveURL(/\/plataforma$/);
+  await expect(page.getByRole("heading", { name: "Corretoras", exact: true })).toBeVisible();
 });

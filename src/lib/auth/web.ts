@@ -17,7 +17,7 @@ const SESSION_DAYS = 14;
 function secureCookie(): boolean {
   // Lição da rodada de setembro: cookie Secure sobre HTTP é descartado em
   // silêncio e o login "volta" para a tela de entrar sem erro nenhum.
-  return (process.env.APP_URL ?? "").startsWith("https://");
+  return process.env.NODE_ENV === "production" || (process.env.APP_URL ?? "").startsWith("https://");
 }
 
 export type CurrentUser = {

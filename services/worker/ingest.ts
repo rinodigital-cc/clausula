@@ -5,8 +5,7 @@
  * TRABALHO antes de tocar em qualquer dado: a RLS continua valendo para ele.
  * Estados reais, nesta ordem: queued → processing → ready | ready_with_warnings | failed.
  */
-import { readFile } from "node:fs/promises";
-import path from "node:path";
+import { readOriginal } from "../../src/lib/storage";
 import type postgres from "postgres";
 import { dividirDocumento } from "../ai/nucleo";
 import { extractPdf, ExtractionError } from "../ai/extract";
@@ -60,8 +59,7 @@ export async function processOneJob(sql: Sql): Promise<JobOutcome | null> {
     }
 
     await setStage(sql, orgId, versionId, "Lendo arquivo");
-    const root = path.resolve(process.env.STORAGE_DIR ?? "./storage");
-    const data = new Uint8Array(await readFile(path.join(root, meta.file_key)));
+    const data = new Uint8Array(await readOriginal(meta.file_key));
 
     await setStage(sql, orgId, versionId, "Extraindo texto");
     const { pages, pageCount } = await extractPdf(data);

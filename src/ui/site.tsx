@@ -11,7 +11,7 @@ export function SiteHeader() {
           <Link href="/#como-funciona">Como funciona</Link>
           <Link href="/#confianca">Confiança</Link>
           <Link href="/#perguntas">Perguntas</Link>
-          <Link href="/entrar">Entrar</Link>
+          <Link href={`${process.env.APP_URL ?? ""}/login`}>Entrar</Link>
           <Link href="/contato" className="btn btn-primary btn-sm">Quero testar</Link>
         </div>
       </nav>
@@ -32,7 +32,7 @@ export function SiteFooter() {
           <nav aria-label="Rodapé">
             <Link href="/#como-funciona">Como funciona</Link>
             <Link href="/contato">Contato</Link>
-            <Link href="/entrar">Entrar</Link>
+            <Link href={`${process.env.APP_URL ?? ""}/login`}>Entrar</Link>
             <Link href="/privacidade">Privacidade</Link>
           </nav>
         </div>

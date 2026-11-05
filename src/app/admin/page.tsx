@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { requireTenant, getMemberships } from "@/lib/auth/web";
+import { redirect } from "next/navigation";
+import { getCurrentUser, requireTenant, getMemberships } from "@/lib/auth/web";
 import { adminOverview } from "@/lib/domain/gaps";
 import { listCatalog } from "@/lib/domain/catalog";
 import { listConversations } from "@/lib/domain/consult";
@@ -13,6 +14,8 @@ export const metadata: Metadata = { title: "Administração" };
 type Step = { done: boolean; title: string; why: string; href: string; cta: string };
 
 export default async function AdminHome({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
+  const userAtEntry = await getCurrentUser();
+  if (userAtEntry?.isPlatformAdmin) redirect("/plataforma");
   const sp = await searchParams;
   const { user, session } = await requireTenant("analytics.read");
   const [o, catalog, mine, memberships] = await Promise.all([

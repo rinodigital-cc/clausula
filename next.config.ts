@@ -22,6 +22,12 @@ const config: NextConfig = {
   poweredByHeader: false,
   serverExternalPackages: ["pdfjs-dist", "postgres"],
   experimental: { serverActions: { bodySizeLimit: "30mb" } },
+  async rewrites() {
+    return [{ source: "/login", destination: "/entrar" }];
+  },
+  async redirects() {
+    return [{ source: "/", has: [{ type: "host", value: "app.apoiaseguro.com.br" }], destination: "/app", permanent: false }];
+  },
   async headers() {
     return [
       {

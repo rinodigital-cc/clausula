@@ -1,12 +1,14 @@
 import { AppHeader } from "@/app/app/AppHeader";
 import { SideNav } from "@/app/app/NavTabs";
-import { requireTenant } from "@/lib/auth/web";
+import { getCurrentUser, requireTenant } from "@/lib/auth/web";
 import { adminOverview } from "@/lib/domain/gaps";
 import { IconBook, IconGap, IconHome, IconStar, IconTag, IconUsers } from "@/ui/icons";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+  const user = await getCurrentUser();
+  if (user?.isPlatformAdmin && !user.activeOrgId) return children;
   const { session } = await requireTenant("analytics.read");
   const o = await adminOverview(session);
   return (
