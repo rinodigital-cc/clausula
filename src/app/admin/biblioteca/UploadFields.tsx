@@ -6,10 +6,12 @@ type Insurer = { id: string; name: string; products: { id: string; name: string 
 
 /** Campos do envio: o produto depende da seguradora escolhida. */
 export function UploadFields({
+  maxUploadMb = 25,
   insurers,
   docTypes,
   defaults,
 }: {
+  maxUploadMb?: number;
   insurers: Insurer[];
   docTypes: [string, string][];
   defaults?: { title?: string; insurerId?: string | null; productId?: string | null; docType?: string };
@@ -23,8 +25,12 @@ export function UploadFields({
       <div className="field span-all">
         <label htmlFor="arquivo">Arquivo PDF</label>
         <input id="arquivo" name="arquivo" type="file" accept="application/pdf,.pdf" required className="input" style={{ paddingTop: 10 }}
-          onChange={(e) => setFileName(e.target.files?.[0]?.name ?? null)} aria-describedby="arquivo-ajuda" />
-        <span id="arquivo-ajuda" className="help">Até 25 MB. O PDF precisa ter texto selecionável; documentos escaneados como imagem ainda não são aceitos.</span>
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            setFileName(file?.name ?? null);
+            e.target.setCustomValidity(file && file.size > maxUploadMb * 1024 * 1024 ? `O limite é ${maxUploadMb} MB. Comprima ou divida o PDF.` : "");
+          }} aria-describedby="arquivo-ajuda" />
+        <span id="arquivo-ajuda" className="help">Até {maxUploadMb} MB. O PDF precisa ter texto selecionável; documentos escaneados como imagem ainda não são aceitos.</span>
       </div>
       <div className="field span-all">
         <label htmlFor="titulo">Título</label>

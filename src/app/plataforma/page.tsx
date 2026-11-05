@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { requirePlatformAdmin } from "@/lib/auth/web";
 import { listBrokerages } from "@/lib/domain/platform";
-import { brokerageStatusAction, reissueOwnerAction } from "@/app/actions/admin";
+import { brokerageStatusAction, reissueOwnerAction, retryProcessingAction } from "@/app/actions/admin";
 import { ActionForm } from "@/ui/ActionForm";
 import { SubmitButton } from "@/ui/client";
 import { EmptyState, PageHead, formatDate } from "@/ui/components";
@@ -18,6 +18,7 @@ export default async function BrokeragesPage() {
     <div className="stack-lg">
       <FlashMessage />
       <PageHead title="Corretoras" lead="Acompanhe os acessos e convites. O painel não dá acesso ao conteúdo dos documentos ou das consultas.">
+        <form action={retryProcessingAction}><SubmitButton className="btn btn-secondary">Retomar processamento</SubmitButton></form>
         <Link className="btn btn-primary" href="/plataforma/nova">Nova corretora</Link>
       </PageHead>
       {!brokerages.length ? <EmptyState title="Nenhuma corretora criada" why="Crie a primeira corretora e envie o convite ao responsável." /> : (

@@ -161,7 +161,7 @@ export default async function AdminDocumento({ params }: { params: Promise<{ sou
           </p>
           <ActionForm action={uploadAction} encType="multipart/form-data" ariaLabel="Enviar nova versão">
             <input type="hidden" name="substituir" value={source.id} />
-            <UploadFields insurers={catalog} docTypes={docTypes} defaults={{ title: source.title, insurerId: source.insurerId, productId: source.productId, docType: source.docType }} />
+            <UploadFields maxUploadMb={process.env.VERCEL ? 3 : 25} insurers={catalog} docTypes={docTypes} defaults={{ title: source.title, insurerId: source.insurerId, productId: source.productId, docType: source.docType }} />
             <div className="row"><SubmitButton pendingLabel="Enviando…">Enviar nova versão</SubmitButton></div>
           </ActionForm>
         </section>

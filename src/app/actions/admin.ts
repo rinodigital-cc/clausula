@@ -1,5 +1,6 @@
 "use server";
 
+import { notifyProcessor } from "@/lib/processing";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requirePlatformAdmin, requireTenant } from "@/lib/auth/web";
@@ -46,6 +47,7 @@ export async function uploadAction(_: ActionState, form: FormData): Promise<Acti
       replaceSourceId: s(form, "substituir") || null,
     });
     sourceId = r.sourceId;
+    await notifyProcessor();
   } catch (e) {
     return { error: safeMessage(e) };
   }
@@ -69,8 +71,10 @@ async function step(path: string, okText: string, fn: () => Promise<unknown>): P
 
 export async function reprocessAction(form: FormData): Promise<void> {
   const { session } = await requireTenant("source.write");
-  await step(`/admin/biblioteca/${s(form, "documento")}`, "Reprocessamento na fila. A situação atualiza sozinha nesta tela.", () =>
-    reprocessVersion(session, s(form, "versao")),
+  await step(`/admin/biblioteca/${s(form, "documento")}`, "Reprocessamento na fila. A situação atualiza sozinha nesta tela.", async () => {
+    await reprocessVersion(session, s(form, "versao"));
+    await notifyProcessor();
+  },
   );
 }
 
@@ -124,6 +128,7 @@ export async function inviteAction(_: ActionState, form: FormData): Promise<Acti
   try {
     const email = s(form, "email");
     const r = await inviteMember(session, { email, role: s(form, "papel") || "member" });
+    await notifyProcessor();
     revalidatePath("/admin/equipe");
     return {
       ok: `Convite criado para ${email.toLowerCase()}. Ele vale por 7 dias. Envie o link abaixo para a pessoa (o envio automático de e-mail ainda não está ligado neste ambiente).`,
@@ -188,6 +193,7 @@ export async function createBrokerageAction(_: ActionState, form: FormData): Pro
       insurers: s(form, "seguradoras").split(/[\n,;]+/),
       joinAsImplementer: form.get("implantador") === "on",
     });
+    await notifyProcessor();
     revalidatePath("/plataforma");
     return {
       ok: `Corretora “${name}” criada em modo teste. Envie o link de primeiro acesso ao responsável: ele vale por 7 dias e só funciona uma vez.`,
@@ -203,9 +209,16 @@ export async function reissueOwnerAction(_: ActionState, form: FormData): Promis
   const actor = await requirePlatformAdmin();
   try {
     const link = await reissueOwnerInvite(actor, s(form, "corretora"), s(form, "email"));
+    await notifyProcessor();
+    await notifyProcessor();
     revalidatePath("/plataforma");
     return { ok: "Novo convite gerado. O anterior deixou de valer.", link, at: Date.now() };
   } catch (e) {
     return { error: safeMessage(e) };
   }
+}
+
+export async function retryProcessingAction(): Promise<void> {
+  await requirePlatformAdmin();
+  await step("/plataforma", "Fila acionada. Acompanhe a situação dos documentos.", () => notifyProcessor(true));
 }

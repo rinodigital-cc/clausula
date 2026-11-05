@@ -68,7 +68,8 @@ export async function uploadDocument(session: Session, input: UploadInput): Prom
   }
   const f = input.file;
   if (!f || typeof f.arrayBuffer !== "function" || f.size === 0) throw new Error("Selecione um arquivo PDF.");
-  if (f.size > MAX_UPLOAD_BYTES) throw new Error("O arquivo passa de 25 MB. Divida o documento ou comprima o PDF.");
+  const uploadLimit = process.env.VERCEL ? 3 * 1024 * 1024 : MAX_UPLOAD_BYTES;
+  if (f.size > uploadLimit) throw new Error(`O arquivo passa de ${uploadLimit / 1024 / 1024} MB. Divida o documento ou comprima o PDF.`);
   const data = new Uint8Array(await f.arrayBuffer());
   if (!looksLikePdf(data)) throw new Error("O arquivo não é um PDF válido.");
   if (!DOC_TYPES[input.docType] || input.docType === "nota_interna") throw new Error("Tipo de documento inválido.");

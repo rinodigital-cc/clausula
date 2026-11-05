@@ -13,6 +13,10 @@ import type postgres from "postgres";
 type Sql = ReturnType<typeof postgres>;
 
 export async function dispatchEmails(sql: Sql, limit = 20): Promise<{ sent: number; skipped: number; failed: number }> {
+  // Remote deployments must retain pending mail until a real provider is configured.
+  if (process.env.VERCEL && (process.env.EMAIL_TRANSPORT === "file" || !process.env.RESEND_API_KEY || !process.env.EMAIL_FROM)) {
+    return { sent: 0, skipped: 0, failed: 0 };
+  }
   const rows = await sql<{ id: string; to_email: string; subject: string; body_text: string; body_html: string; attempts: number }[]>`
     SELECT id, to_email::text AS to_email, subject, body_text, body_html, attempts
     FROM email_outbox WHERE status = 'pending' ORDER BY created_at LIMIT ${limit}
@@ -27,15 +31,15 @@ export async function dispatchEmails(sql: Sql, limit = 20): Promise<{ sent: numb
       if (process.env.EMAIL_TRANSPORT !== "file" && key && from) {
         const res = await fetch("https://api.resend.com/emails", {
           method: "POST",
-          headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+          headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json", "Idempotency-Key": `apoia-email-${m.id}` },
           body: JSON.stringify({ from, to: [m.to_email], subject: m.subject, html: m.body_html, text: m.body_text }),
           signal: AbortSignal.timeout(15_000),
         });
-        if (!res.ok) throw new Error(`Resend ${res.status}: ${(await res.text()).slice(0, 200)}`);
+        if (!res.ok) throw new Error(`Resend ${res.status}`);
         await sql`UPDATE email_outbox SET status = 'sent', sent_at = now(), attempts = attempts + 1, last_error = NULL WHERE id = ${m.id}`;
         sent++;
       } else {
-        const dir = path.join(path.resolve(process.env.STORAGE_DIR ?? "./storage"), "outbox");
+        const dir = path.join(path.resolve(/*turbopackIgnore: true*/ process.env.STORAGE_DIR ?? "./storage"), "outbox");
         await mkdir(dir, { recursive: true });
         await writeFile(
           path.join(dir, `${m.id}.eml`),

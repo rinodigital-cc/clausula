@@ -35,3 +35,15 @@ test("transporte file não envia e-mail mesmo com chave configurada", async () =
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test("Vercel mantém e-mail pendente sem provedor e não grava em disco", async () => {
+  const saved = { ...process.env };
+  try {
+    process.env.VERCEL = "1";
+    process.env.EMAIL_TRANSPORT = "file";
+    let called = false;
+    const sql = async () => { called = true; throw new Error("Não pode consumir a fila sem provedor"); };
+    assert.deepEqual(await dispatchEmails(sql as unknown as Parameters<typeof dispatchEmails>[0]), { sent: 0, skipped: 0, failed: 0 });
+    assert.equal(called, false);
+  } finally { process.env = saved; }
+});

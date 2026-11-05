@@ -47,7 +47,7 @@ export default async function AdminBiblioteca({ searchParams }: { searchParams: 
         </summary>
         <div style={{ padding: "0 var(--s-6) var(--s-6)" }}>
           <ActionForm action={uploadAction} encType="multipart/form-data" ariaLabel="Enviar documento">
-            <UploadFields insurers={catalog} docTypes={docTypes} />
+            <UploadFields maxUploadMb={process.env.VERCEL ? 3 : 25} insurers={catalog} docTypes={docTypes} />
             {catalog.length === 0 ? (
               <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
                 Dica: <Link href="/admin/catalogo">cadastre as seguradoras</Link> antes para organizar a biblioteca e permitir filtrar a consulta.
