@@ -23,7 +23,7 @@
     "test:auth": "node --import tsx --test tests/unit/supabase-auth.test.ts"
   },
   "engines": {
-    "node": ">=22"
+    "node": "22.x"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.3.0",
