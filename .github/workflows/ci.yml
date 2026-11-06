@@ -1,0 +1,33 @@
+name: Validar ApoIA Seguro
+on:
+  pull_request:
+  push:
+    branches: [main, apoia/redesign-fluida]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci --no-audit --no-fund --strict-ssl=true
+      - run: npm run cloud:setup
+      - run: npm run lint
+      - run: node scripts/codex-cloud.mjs run npm test
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/codex-cloud.mjs run npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: resultados-testes-locais
+          path: test-results/

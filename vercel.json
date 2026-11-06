@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "src/app/api/queues/processar/route.ts": {
+      "experimentalTriggers": [{ "type": "queue/v2beta", "topic": "apoia-processing" }]
+    }
+  }
+}
