@@ -136,6 +136,17 @@ export function workerPool(): SqlClient {
   return client("WORKER_DATABASE_URL", 3, "worker");
 }
 
+export async function withWorkerTenant<T>(orgId: string, fn: (db: SqlClient) => Promise<T>): Promise<T> {
+  if (!isUuid(orgId)) throw new Error("orgId inválido");
+  if (process.env.WORKER_DATABASE_URL) {
+    return pool("WORKER_DATABASE_URL", 3).begin(async (tx) => {
+      await tx`SELECT set_config('app.current_org', ${orgId}, true)`;
+      return fn(tx as unknown as SqlClient);
+    }) as Promise<T>;
+  }
+  return fn(remoteClient("worker", { orgId }));
+}
+
 function logPrivileged(kind: string, reason: string) {
   if (process.env.NODE_ENV === "test") return;
   console.info(JSON.stringify({ level: "info", event: "privileged_db_access", kind, reason }));
