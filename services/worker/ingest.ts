@@ -6,11 +6,12 @@
  * Estados reais, nesta ordem: queued → processing → ready | ready_with_warnings | failed.
  */
 import { readOriginal } from "../../src/lib/storage";
+import type postgres from "postgres";
 import { withWorkerTenant, type SqlClient } from "../../src/lib/db/client";
 import { dividirDocumento } from "../ai/nucleo";
 import { extractPdf, ExtractionError } from "../ai/extract";
 
-type Sql = SqlClient;
+type Sql = SqlClient | ReturnType<typeof postgres>;
 type Tx = SqlClient;
 
 const SECTION_MAP: Record<string, string> = {
