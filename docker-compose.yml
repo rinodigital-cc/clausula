@@ -1,0 +1,15 @@
+# Banco local para desenvolvimento (PostgreSQL 16 + pgvector). Só o banco:
+# a aplicação roda com `npm run dev` e o worker com `npm run worker`.
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: apoiaseguro
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - apoia-db:/var/lib/postgresql/data
+volumes:
+  apoia-db:

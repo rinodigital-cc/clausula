@@ -1,0 +1,16 @@
+{
+  "name": "ApoIA Seguro",
+  "short_name": "ApoIA Seguro",
+  "description": "IA que apoia o corretor com respostas técnicas sobre seguros, com base documental.",
+  "lang": "pt-BR",
+  "start_url": "/app",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#F5F7FA",
+  "theme_color": "#12305C",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
