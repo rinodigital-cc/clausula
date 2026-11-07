@@ -9,8 +9,9 @@ export async function GET() {
   try {
     await withPublic((sql) => sql`SELECT 1`);
     db = true;
-  } catch {
+  } catch (e) {
     db = false;
+    console.error(JSON.stringify({ event: "health_db_failed", message: e instanceof Error ? e.message : String(e) }));
   }
   return Response.json(
     { ok: db, db: db ? "ok" : "indisponivel", ms: Date.now() - started },
