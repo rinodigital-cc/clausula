@@ -84,9 +84,10 @@ test("operador cria corretora, reemite convite, suspende e reativa", async ({ pa
   await page.getByLabel("Nome da corretora").fill("Corretora E2E (SIMULAÇÃO)");
   await page.getByLabel("E-mail do responsável").fill("dono@e2e.test");
   await page.getByRole("button", { name: "Criar corretora", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText("criada em modo teste");
+  await expect(page.getByRole("heading", { name: "Corretora criada", exact: true })).toBeVisible();
+  await expect(page.getByText("criada em modo teste")).toBeVisible();
   const original = await page.locator("code").innerText();
-  await page.goto("/plataforma");
+  await page.getByRole("link", { name: "Voltar para corretoras", exact: true }).click();
   const row = page.getByRole("row").filter({ hasText: "Corretora E2E (SIMULAÇÃO)" });
   await row.getByText("Reenviar convite", { exact: true }).click();
   await row.getByRole("button", { name: "Gerar novo convite" }).click();
