@@ -12,7 +12,6 @@ import type postgres from "postgres";
 import type { SqlClient } from "../../src/lib/db/client";
 
 type SqlInput = SqlClient | ReturnType<typeof postgres>;
-type Sql = SqlClient;
 
 export async function dispatchEmails(sqlInput: SqlInput, limit = 20): Promise<{ sent: number; skipped: number; failed: number }> {
   const sql = sqlInput as unknown as SqlClient;
