@@ -208,7 +208,8 @@ async function generativeAnswer(
 }
 
 export function generativeAvailable(): boolean {
-  return !!process.env.ANTHROPIC_API_KEY || !!process.env.VERCEL;
+  if (process.env.ANTHROPIC_API_KEY) return true;
+  return !!process.env.VERCEL && process.env.AI_GENERATIVE_ENABLED === "true";
 }
 
 // ---------------------------------------------------------------------------
