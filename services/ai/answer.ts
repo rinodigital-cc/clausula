@@ -27,6 +27,7 @@ import {
   type SaidaModelo,
 } from "./nucleo";
 import type { Retrieved } from "./retrieval";
+import { vercelOidcToken } from "../../src/lib/db/client";
 
 export type Warning =
   | { kind: "vigencia_vencida"; source_title: string; valid_until: string }
@@ -172,7 +173,16 @@ async function generativeAnswer(
   orgInstructions: string,
   model: string,
 ): Promise<{ out: SaidaModelo; tokensIn: number; tokensOut: number }> {
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: 45_000, maxRetries: 1 });
+  const directKey = process.env.ANTHROPIC_API_KEY;
+  const gatewayToken = directKey ? "" : await vercelOidcToken();
+  const apiKey = directKey || gatewayToken;
+  if (!apiKey) throw new Error("Credencial de IA indisponível");
+  const client = new Anthropic({
+    apiKey,
+    ...(directKey ? {} : { baseURL: "https://ai-gateway.vercel.sh" }),
+    timeout: 45_000,
+    maxRetries: 1,
+  });
   const delim = delimitadorAleatorio();
   const response = await client.messages.create({
     model,
@@ -198,7 +208,7 @@ async function generativeAnswer(
 }
 
 export function generativeAvailable(): boolean {
-  return !!process.env.ANTHROPIC_API_KEY;
+  return !!process.env.ANTHROPIC_API_KEY || !!process.env.VERCEL;
 }
 
 // ---------------------------------------------------------------------------
@@ -226,8 +236,8 @@ export async function answerQuestion(input: {
   if (canGenerate) {
     model =
       input.budget === "economy"
-        ? process.env.ANSWER_MODEL_ECONOMY ?? "claude-haiku-5-5"
-        : process.env.ANSWER_MODEL ?? "claude-sonnet-5-5";
+        ? process.env.ANSWER_MODEL_ECONOMY ?? "anthropic/claude-haiku-5.5"
+        : process.env.ANSWER_MODEL ?? "anthropic/claude-sonnet-5.5";
     if (input.budget === "economy") warnings.push({ kind: "orcamento_economico" });
     try {
       const g = await generativeAnswer(input.question, input.chunks, input.orgInstructions ?? "", model);
