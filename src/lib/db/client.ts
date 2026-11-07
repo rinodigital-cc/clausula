@@ -65,6 +65,23 @@ function compile(strings: TemplateStringsArray, values: unknown[]) {
 
 type RemoteKind = "tenant" | "bootstrap" | "platform" | "public" | "worker";
 
+async function vercelOidcToken(): Promise<string> {
+  try {
+    const { headers } = await import("next/headers");
+    const token = (await headers()).get("x-vercel-oidc-token");
+    if (token) return token;
+  } catch {}
+  const file = process.env.VERCEL_OIDC_TOKEN_FILE;
+  if (file) {
+    try {
+      const { readFile } = await import("node:fs/promises");
+      const token = (await readFile(file, "utf8")).trim();
+      if (token) return token;
+    } catch {}
+  }
+  return process.env.VERCEL_OIDC_TOKEN ?? "";
+}
+
 function remoteClient(kind: RemoteKind, context?: { orgId?: string; userId?: string }): SqlClient {
   const endpoint = (process.env.SUPABASE_URL ?? process.env.SUPABASE_AUTH_URL ?? "").replace(/\/$/, "") + "/functions/v1/db-gateway";
 
@@ -73,8 +90,8 @@ function remoteClient(kind: RemoteKind, context?: { orgId?: string; userId?: str
     ...values: unknown[]
   ): Promise<QueryRows<T>> => {
     if (!endpoint.startsWith("https://")) throw new Error("SUPABASE_URL não definida");
-    const token = process.env.VERCEL_OIDC_TOKEN;
-    if (!token) throw new Error("VERCEL_OIDC_TOKEN não disponível");
+    const token = await vercelOidcToken();
+    if (!token) throw new Error("OIDC da Vercel não disponível");
     const body = compile(strings, values);
     const response = await fetch(endpoint, {
       method: "POST",
