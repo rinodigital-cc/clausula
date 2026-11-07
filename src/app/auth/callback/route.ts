@@ -18,10 +18,24 @@ async function finishRecovery(request: NextRequest, userId: string) {
   if (!saved) return NextResponse.redirect(new URL("/recuperar?invalido=1", request.url));
 
   (await cookies()).delete(SESSION_COOKIE);
-  const response = NextResponse.redirect(new URL(`/redefinir/${token}`, request.url));
-  response.headers.set("Cache-Control", "private, no-store");
-  response.headers.set("Referrer-Policy", "no-referrer");
-  return response;
+  const target = new URL(`/redefinir/${token}`, request.url);
+  const safe = JSON.stringify(target.pathname + target.search);
+  const html = `<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Definir nova senha · ApoIA Seguro</title>
+<style>body{font-family:system-ui,-apple-system,sans-serif;background:#f5f7fb;color:#0f172a;display:grid;place-items:center;min-height:100vh;margin:0}.box{max-width:520px;padding:32px;text-align:center}p{color:#64748b}</style>
+</head><body><main class="box"><h1>Acesso validado</h1><p>Direcionando para criar sua nova senha…</p><noscript><a href="${target.pathname}">Continuar</a></noscript></main>
+<script>window.location.replace(${safe});</script></body></html>`;
+  return new NextResponse(html, {
+    status: 200,
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "private, no-store",
+      "Referrer-Policy": "no-referrer",
+      "Content-Disposition": "inline",
+      "Content-Security-Policy": "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'",
+    },
+  });
 }
 
 /** Callback de recuperação. Aceita PKCE/token_hash e também links antigos com fragmento. */
