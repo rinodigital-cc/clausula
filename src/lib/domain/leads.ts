@@ -47,6 +47,33 @@ export async function submitLead(input: LeadInput): Promise<LeadResult> {
   const salt = process.env.SESSION_SECRET ?? "apoia";
   const ipHash = input.ip ? createHash("sha256").update(salt + input.ip).digest("hex").slice(0, 32) : null;
 
+  if (!process.env.PUBLIC_DATABASE_URL) {
+    const base = (process.env.SUPABASE_URL ?? process.env.SUPABASE_AUTH_URL ?? "").replace(/\/$/, "");
+    if (!base) throw new Error("Supabase URL não configurada");
+    const response = await fetch(base + "/functions/v1/public-lead", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name,
+        email,
+        company: input.company,
+        phone,
+        teamSize,
+        interest,
+        message: input.message,
+        consent: input.consent,
+        website: input.website,
+        startedAt: input.startedAt,
+        userAgent: input.userAgent,
+        path: input.path ?? "/contato",
+      }),
+      cache: "no-store",
+    });
+    const data = await response.json().catch(() => null) as LeadResult | null;
+    if (!response.ok || !data) throw new Error("Falha no endpoint público de leads");
+    return data;
+  }
+
   return withPublic(async (db) => {
     if (ipHash) {
       const [q] = await db<{ ok: boolean }[]>`SELECT consume_lead_quota(${ipHash}, 5) AS ok`;
