@@ -1,7 +1,7 @@
 -- Hardening aplicado na homologação em 2026-11-06.
 -- Idempotente: fixa search_path de funções expostas e reduz superfície do Data API.
--- A aplicação usa os papéis apoia_* via conexões PostgreSQL próprias; anon/authenticated
--- não precisam de privilégios diretos sobre as tabelas de negócio.
+-- Em Supabase, anon/authenticated existem. Em Postgres local/CI podem não existir;
+-- nesse caso o bloco condicional apenas ignora os REVOKEs específicos desses roles.
 
 ALTER FUNCTION public.uuidv7() SET search_path = public, extensions, pg_temp;
 ALTER FUNCTION public.set_updated_at() SET search_path = public, extensions, pg_temp;
@@ -14,10 +14,18 @@ ALTER FUNCTION public.refresh_vector_strategy(uuid) SET search_path = public, ex
 ALTER FUNCTION public.vector_health_check(integer) SET search_path = public, extensions, pg_temp;
 ALTER FUNCTION public.current_org_role() SET search_path = public, extensions, pg_temp;
 
-REVOKE ALL ON ALL TABLES IN SCHEMA public FROM anon, authenticated;
-REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM anon, authenticated;
-REVOKE ALL ON ALL FUNCTIONS IN SCHEMA public FROM anon, authenticated;
-
-ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM anon, authenticated;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON SEQUENCES FROM anon, authenticated;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON FUNCTIONS FROM anon, authenticated;
+DO $$
+DECLARE r text;
+BEGIN
+  FOREACH r IN ARRAY ARRAY['anon','authenticated']
+  LOOP
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = r) THEN
+      EXECUTE format('REVOKE ALL ON ALL TABLES IN SCHEMA public FROM %I', r);
+      EXECUTE format('REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM %I', r);
+      EXECUTE format('REVOKE ALL ON ALL FUNCTIONS IN SCHEMA public FROM %I', r);
+      EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM %I', r);
+      EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON SEQUENCES FROM %I', r);
+      EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON FUNCTIONS FROM %I', r);
+    END IF;
+  END LOOP;
+END $$;
