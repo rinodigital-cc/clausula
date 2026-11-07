@@ -65,7 +65,7 @@ function compile(strings: TemplateStringsArray, values: unknown[]) {
 
 type RemoteKind = "tenant" | "bootstrap" | "platform" | "public" | "worker";
 
-async function vercelOidcToken(): Promise<string> {
+export async function vercelOidcToken(): Promise<string> {
   try {
     const { headers } = await import("next/headers");
     const token = (await headers()).get("x-vercel-oidc-token");
