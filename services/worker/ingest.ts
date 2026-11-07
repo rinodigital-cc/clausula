@@ -6,12 +6,12 @@
  * Estados reais, nesta ordem: queued → processing → ready | ready_with_warnings | failed.
  */
 import { readOriginal } from "../../src/lib/storage";
-import type postgres from "postgres";
+import { withWorkerTenant, type SqlClient } from "../../src/lib/db/client";
 import { dividirDocumento } from "../ai/nucleo";
 import { extractPdf, ExtractionError } from "../ai/extract";
 
-type Sql = ReturnType<typeof postgres>;
-type Tx = postgres.TransactionSql<Record<string, never>>;
+type Sql = SqlClient;
+type Tx = SqlClient;
 
 const SECTION_MAP: Record<string, string> = {
   coverage: "coverage",
@@ -24,11 +24,8 @@ const SECTION_MAP: Record<string, string> = {
 
 const KEY_RE = /^[0-9a-f-]{36}\/[0-9a-f-]{36}\.pdf$/;
 
-async function inTenant<T>(sql: Sql, orgId: string, fn: (tx: Tx) => Promise<T>): Promise<T> {
-  return sql.begin(async (tx) => {
-    await tx`SELECT set_config('app.current_org', ${orgId}, true)`;
-    return fn(tx as unknown as Tx);
-  }) as Promise<T>;
+async function inTenant<T>(_sql: Sql, orgId: string, fn: (tx: Tx) => Promise<T>): Promise<T> {
+  return withWorkerTenant(orgId, fn);
 }
 
 async function setStage(sql: Sql, orgId: string, versionId: string, stage: string, status = "processing") {
