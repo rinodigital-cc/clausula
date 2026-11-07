@@ -48,7 +48,6 @@ export async function GET(request: NextRequest) {
   // Links antigos do Supabase implicit flow carregam access_token/refresh_token no #fragment,
   // que nunca chega ao servidor. Servimos uma ponte mínima que lê o fragmento no browser,
   // estabelece a sessão Supabase e troca por um recibo de reset server-side.
-  const origin = request.nextUrl.origin;
   const html = `<!doctype html>
 <html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Recuperando acesso · ApoIA Seguro</title>
