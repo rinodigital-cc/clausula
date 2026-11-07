@@ -4,8 +4,8 @@ import { isSession, InvalidSessionError, type Session } from "@/lib/auth/session
 type Pool = ReturnType<typeof postgres>;
 type QueryRows<T extends readonly unknown[] = readonly Record<string, unknown>[]> = T & { count: number };
 export type SqlClient = {
-  <T extends readonly unknown[] = readonly Record<string, unknown>[]>(strings: TemplateStringsArray, ...values: unknown[]): Promise<QueryRows<T>>;
-  begin<T>(fn: (tx: SqlClient) => Promise<T>): Promise<T>;
+  <T extends readonly unknown[] = readonly Record<string, unknown>[]>(strings: TemplateStringsArray, ...values: any[]): Promise<any>;
+  begin: (...args: any[]) => Promise<any>;
 };
 export type TenantSql = SqlClient;
 export type PrivilegedSql = SqlClient;
