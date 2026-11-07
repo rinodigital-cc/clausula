@@ -8,9 +8,10 @@
  */
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import type postgres from "postgres";
 import type { SqlClient } from "../../src/lib/db/client";
 
-type Sql = SqlClient;
+type Sql = SqlClient | ReturnType<typeof postgres>;
 
 export async function dispatchEmails(sql: Sql, limit = 20): Promise<{ sent: number; skipped: number; failed: number }> {
   // Remote deployments must retain pending mail until a real provider is configured.
