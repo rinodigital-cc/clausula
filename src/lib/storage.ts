@@ -60,7 +60,7 @@ async function signedStorage(action: "upload" | "download", key: string): Promis
   const raw = (process.env.SUPABASE_URL ?? "").replace(/\/$/, "");
   if (!raw) throw new Error("SUPABASE_URL não configurada");
   const oidc = await vercelOidcToken();
-  if (!oidc) throw new Error("OIDC da Vercel não disponível para storage");
+  if (!oidc) throw new Error("Armazenamento persistente não configurado: OIDC da Vercel indisponível");
   const response = await fetch(raw + "/functions/v1/storage-gateway", {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${oidc}` },
