@@ -11,7 +11,8 @@ import { withWorkerTenant, type SqlClient } from "../../src/lib/db/client";
 import { dividirDocumento } from "../ai/nucleo";
 import { extractPdf, ExtractionError } from "../ai/extract";
 
-type Sql = SqlClient | ReturnType<typeof postgres>;
+type SqlInput = SqlClient | ReturnType<typeof postgres>;
+type Sql = SqlClient;
 type Tx = SqlClient;
 
 const SECTION_MAP: Record<string, string> = {
@@ -36,7 +37,8 @@ async function setStage(sql: Sql, orgId: string, versionId: string, stage: strin
 export type JobOutcome = { jobId: string; versionId: string; status: "ready" | "ready_with_warnings" | "failed" | "retry"; detail?: string };
 
 /** Processa UM trabalho da fila, se houver. Devolve null quando a fila está vazia. */
-export async function processOneJob(sql: Sql): Promise<JobOutcome | null> {
+export async function processOneJob(sqlInput: SqlInput): Promise<JobOutcome | null> {
+  const sql = sqlInput as unknown as SqlClient;
   const [job] = await sql<{ job_id: string; org_id: string; source_version_id: string; attempts: number }[]>`
     SELECT * FROM claim_ingestion_job()
   `;
