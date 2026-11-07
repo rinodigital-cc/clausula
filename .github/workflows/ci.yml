@@ -26,6 +26,9 @@ jobs:
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: node scripts/codex-cloud.mjs run npm run test:e2e
+      - run: npm run test:smoke:prod
+        env:
+          PLAYWRIGHT_BASE_URL: https://apoiaseguro.com.br
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
