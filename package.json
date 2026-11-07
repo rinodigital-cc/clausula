@@ -20,7 +20,8 @@
     "lint": "eslint . --max-warnings=0",
     "cloud:setup": "node scripts/codex-cloud.mjs setup",
     "test:e2e": "playwright test",
-    "test:auth": "node --import tsx --test tests/unit/supabase-auth.test.ts"
+    "test:auth": "node --import tsx --test tests/unit/supabase-auth.test.ts",
+    "test:smoke:prod": "playwright test -c playwright.prod.config.ts"
   },
   "engines": {
     "node": "22.x"
