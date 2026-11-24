@@ -1,21 +1,21 @@
 import Link from "next/link";
-import { WORDMARK } from "@/ui/wordmark-data";
+
 
 /**
  * Fonte única do nome e das frases da marca. Nenhuma tela escreve
- * “ApoIA Seguro” à mão: importa daqui. Trocar uma frase = trocar aqui.
+ * “Vera.ia” à mão: importa daqui. Trocar uma frase = trocar aqui.
  */
 export const BRAND = {
-  name: "ApoIA Seguro",
+  name: "Vera.ia",
   /** Complemento institucional (rodapé, e-mail, metadados). */
   descriptor: "Inteligência para corretores de seguros",
   descriptorLong: "IA aplicada ao mercado de seguros",
   /** Proposta central. */
-  promise: "IA que apoia o corretor com respostas técnicas sobre seguros, com base documental.",
-  headline: "Menos dúvida. Mais clareza para orientar o cliente.",
+  promise: "A Vera.ia apoia o corretor com respostas confiáveis, baseadas nos documentos de cada seguradora, com agilidade, clareza e fonte.",
+  headline: "Conhecimento que dá segurança.",
   /** Aviso de responsabilidade: aparece onde há resposta. */
   disclaimer:
-    "A ApoIA Seguro apoia a sua análise com base nos documentos da corretora. Ela não garante cobertura: confirme o caso concreto na apólice e com a seguradora.",
+    "A Vera.ia apoia a sua análise com base nos documentos da corretora. Ela não garante cobertura: confirme o caso concreto na apólice e com a seguradora.",
   domain: "apoiaseguro.com.br",
 } as const;
 
@@ -38,20 +38,9 @@ export function Wordmark({
 }) {
   const height = Math.round(size * 1.3);
   const svg = (
-    <svg
-      viewBox={WORDMARK.viewBox}
-      height={height}
-      width={Math.round(height * WORDMARK.ratio)}
-      role="img"
-      aria-label={href ? undefined : ariaLabel}
-      aria-hidden={href ? true : undefined}
-      focusable="false"
-      style={{ display: "block" }}
-    >
-      <path d={WORDMARK.apo} style={{ fill: onDark ? "#FFFFFF" : "var(--brand-navy)" }} />
-      <path d={WORDMARK.ia} style={{ fill: onDark ? "var(--brand-ia-light)" : "var(--brand-ia)" }} />
-      <path d={WORDMARK.seg} style={{ fill: onDark ? "#FFFFFF" : "var(--brand-navy)" }} />
-    </svg>
+    <span role="img" aria-label={href ? undefined : ariaLabel} aria-hidden={href ? true : undefined} style={{display:"inline-flex",alignItems:"center",gap:size*0.28,whiteSpace:"nowrap",fontSize:height,fontWeight:750,letterSpacing:"-0.06em",lineHeight:1,color:onDark?"#F4EDE2":"#401C28"}}>
+      <BrandTile size={height} /><span>vera<span style={{color:onDark?"#F26445":"#A63829"}}>.ia</span></span>
+    </span>
   );
   return href ? (
     <Link href={href} className="wordmark-link" aria-label={ariaLabel}>
@@ -66,9 +55,9 @@ export function Wordmark({
 export function BrandTile({ size = 28, title }: { size?: number; title?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 64 64" role={title ? "img" : undefined} aria-hidden={title ? undefined : true} aria-label={title}>
-      <rect width="64" height="64" rx="14" fill="#12305C" />
-      <path fill="#FFFFFF" d="M11.5 18h14v4h-4v20h4v4h-14v-4h4V22h-4z" />
-      <path fill="#FFFFFF" fillRule="evenodd" d="M30.5 46L38 18h7l7.5 28h-6.4l-1.6-6h-6l-1.6 6zM39.9 34.8h3.2L41.5 28.83z" />
+      <rect width="64" height="64" rx="14" fill="#401C28" />
+      <path fill="#F26445" d="M9 19 Q8 15 14 15 H21 Q27 15 30 22 L42 42 Q37 54 30 51 Q25 50 21 43Z" />
+      <path fill="#F5B544" d="M28 40 L43 12 Q45 8 50 8 H56 Q60 8 57 14 L43 40 Q38 45 28 40Z" />
     </svg>
   );
 }
