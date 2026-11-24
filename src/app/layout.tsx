@@ -17,8 +17,8 @@ export const metadata: Metadata = {
   description: DESCRIPTION,
   applicationName: BRAND.name,
   icons: {
-    icon: [{ url: "/favicon.svg", type: "image/svg+xml" }, { url: "/favicon.ico", sizes: "16x16 32x32 48x48" }],
-    apple: "/apple-touch-icon.png",
+    icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
+    apple: "/favicon.svg",
   },
   manifest: "/site.webmanifest",
   appleWebApp: { title: BRAND.name, capable: true, statusBarStyle: "default" },
@@ -42,7 +42,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#12305C",
+  themeColor: "#401C28",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
