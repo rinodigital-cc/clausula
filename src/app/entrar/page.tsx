@@ -16,7 +16,7 @@ export default async function EntrarPage({ searchParams }: { searchParams: Promi
       <div className="auth-form">
         <div className="stack-sm">
           <h1>Entrar</h1>
-          <p className="muted">Acesse a ApoIA Seguro com o e-mail cadastrado pela sua corretora.</p>
+          <p className="muted">Acesse a Vera.ia com o e-mail cadastrado pela sua corretora.</p>
         </div>
         {sp.saiu ? <Alert tone="success">Você saiu da sua conta.</Alert> : null}
         {sp.expirou ? <Alert tone="info">Sua sessão terminou. Entre de novo para continuar.</Alert> : null}

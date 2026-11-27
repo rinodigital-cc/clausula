@@ -20,7 +20,7 @@ export const BRAND = {
 } as const;
 
 /**
- * Wordmark provisório (até o logo final): “Apo” + “IA” em destaque + “Seguro”.
+ * Wordmark Vera.ia: “vera” + “.ia” em destaque (coral), com o símbolo em V.
  * Desenhado em curvas a partir da Inter Display, com o I serifado (variante
  * cv08) para não ser lido como l em nenhum navegador. `size` = altura da
  * maiúscula aproximada, em px.

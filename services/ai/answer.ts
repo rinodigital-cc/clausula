@@ -207,6 +207,17 @@ async function generativeAnswer(
   };
 }
 
+/**
+ * O nome do modelo depende do transporte: API direta da Anthropic usa
+ * "claude-sonnet-5-5"; o Vercel AI Gateway usa "anthropic/claude-sonnet-5.5".
+ * Nome errado fazia a IA cair em silêncio no modo literal.
+ */
+export function defaultModel(economy: boolean): string {
+  const direct = !!process.env.ANTHROPIC_API_KEY;
+  if (economy) return process.env.ANSWER_MODEL_ECONOMY || (direct ? "claude-haiku-5-5" : "anthropic/claude-haiku-5.5");
+  return process.env.ANSWER_MODEL || (direct ? "claude-sonnet-5-5" : "anthropic/claude-sonnet-5.5");
+}
+
 export function generativeAvailable(): boolean {
   if (process.env.ANTHROPIC_API_KEY) return true;
   return !!process.env.VERCEL && process.env.AI_GENERATIVE_ENABLED === "true";
@@ -235,10 +246,7 @@ export async function answerQuestion(input: {
 
   const canGenerate = generativeAvailable() && input.budget !== "exhausted" && input.chunks.length > 0;
   if (canGenerate) {
-    model =
-      input.budget === "economy"
-        ? process.env.ANSWER_MODEL_ECONOMY ?? "anthropic/claude-haiku-5.5"
-        : process.env.ANSWER_MODEL ?? "anthropic/claude-sonnet-5.5";
+    model = defaultModel(input.budget === "economy");
     if (input.budget === "economy") warnings.push({ kind: "orcamento_economico" });
     try {
       const g = await generativeAnswer(input.question, input.chunks, input.orgInstructions ?? "", model);

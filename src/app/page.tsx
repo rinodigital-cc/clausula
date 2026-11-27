@@ -15,7 +15,7 @@ const FAQ: [string, string][] = [
     "Dos documentos que a sua corretora coloca na plataforma, como condições gerais, manuais e procedimentos. A IA não completa a resposta com conhecimento de fora: se a informação não estiver nos documentos, ela avisa que não encontrou.",
   ],
   [
-    "A ApoIA Seguro substitui o corretor?",
+    "A Vera.ia substitui o corretor?",
     "Não. Ela encurta o caminho até o trecho certo do documento. A interpretação para o caso do cliente e a orientação continuam sendo do corretor, que confere a fonte antes de responder.",
   ],
   [

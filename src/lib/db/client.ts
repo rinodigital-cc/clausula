@@ -112,7 +112,12 @@ function remoteClient(kind: RemoteKind, context?: { orgId?: string; userId?: str
     return rows;
   }) as SqlClient;
 
-  tagged.begin = async <T>(fn: (tx: SqlClient) => Promise<T>) => fn(tagged);
+  // ATENÇÃO: pelo gateway HTTP, begin() NÃO é transação (cada comando é uma
+  // requisição). Fica registrado para que a homologação migre às conexões diretas.
+  tagged.begin = async <T>(fn: (tx: SqlClient) => Promise<T>) => {
+    console.warn(JSON.stringify({ event: "db_gateway_non_atomic_transaction", kind }));
+    return fn(tagged);
+  };
   return tagged;
 }
 
