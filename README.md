@@ -1,4 +1,6 @@
-# ApoIA Seguro
+# Vera.ia
+
+Inteligência para corretores de seguros. Conhecimento que dá segurança.
 
 Plataforma de IA para corretoras de seguros. As respostas usam os documentos da corretora e mostram as fontes; sem evidência, o sistema informa que não encontrou a resposta.
 
@@ -23,6 +25,8 @@ node scripts/codex-cloud.mjs run npm run test:e2e
 
 Os testes SQL, de integração e E2E limpam o banco local de testes. Para iniciar o servidor de produção local após o build: `node scripts/codex-cloud.mjs run npm start`.
 
+- [Status da entrega](VERA-STATUS.md)
+- [Autenticação](docs/AUTH.md) · [E-mail](docs/EMAIL.md) · [Deploy](docs/DEPLOY.md) · [QA](docs/QA.md) · [Segurança](docs/SECURITY.md)
 - [Execução no Codex Cloud](docs/CODEX-CLOUD.md)
 - [Homologação e limitações](docs/HOMOLOGACAO.md)
 - [Arquitetura e passagem de bastão](docs/HANDOFF.md)
