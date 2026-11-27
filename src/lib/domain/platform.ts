@@ -140,7 +140,7 @@ export type BrokerageRow = {
 
 export { ACCESS_STATE_LABEL, accessState, type AccessState } from "./access-state";
 
-export async function listBrokerages(actor: CurrentUser): Promise<BrokerageRow[]> {
+export async function listBrokerages(actor: CurrentUser, onlyOrgId?: string): Promise<BrokerageRow[]> {
   assertPlatform(actor);
   return withPlatform("lista de corretoras", (db) =>
     db<BrokerageRow[]>`
@@ -169,8 +169,9 @@ export async function listBrokerages(actor: CurrentUser): Promise<BrokerageRow[]
           AND (inv.id IS NULL OR e.invitation_id = inv.id OR e.invitation_id IS NULL)
         ORDER BY e.created_at DESC LIMIT 1
       ) em ON true
-      WHERE o.deleted_at IS NULL
+      WHERE o.deleted_at IS NULL AND (${onlyOrgId ?? null}::uuid IS NULL OR o.id = ${onlyOrgId ?? null}::uuid)
       ORDER BY o.created_at DESC
+      LIMIT 500
     `,
   );
 }
@@ -275,6 +276,11 @@ export async function setLeadStatus(actor: CurrentUser, leadId: string, status: 
   assertPlatform(actor);
   if (!["new", "contacted", "qualified", "discarded"].includes(status)) throw new Error("Situação inválida.");
   await withPlatform("situação de interessado", (db) => db`UPDATE leads SET status = ${status} WHERE id = ${leadId}`);
+}
+
+/** Uma corretora (página de detalhe) sem carregar a lista inteira. */
+export async function getBrokerage(actor: CurrentUser, orgId: string): Promise<BrokerageRow | null> {
+  return (await listBrokerages(actor, orgId))[0] ?? null;
 }
 
 export type EmailHistoryRow = {

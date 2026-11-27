@@ -47,7 +47,12 @@ async function providerError(res: Response): Promise<string> {
   return `Resend ${res.status}${detail ? ` — ${detail}` : ""}`.slice(0, 300);
 }
 
-export async function dispatchEmails(sqlInput: SqlInput, limit = 20, onlyIds?: string[]): Promise<Result> {
+/**
+ * @param timeoutMs  caminho imediato (usuário esperando) usa tempo menor; a
+ *                   fila/worker usa o padrão. Timeout não perde a mensagem:
+ *                   ela volta para a fila e a Idempotency-Key evita duplicar.
+ */
+export async function dispatchEmails(sqlInput: SqlInput, limit = 20, onlyIds?: string[], timeoutMs = 15_000): Promise<Result> {
   const sql = sqlInput as unknown as SqlClient;
   const result: Result = { sent: 0, skipped: 0, failed: 0, deferred: 0 };
   const provider = emailProviderConfigured();
@@ -99,7 +104,7 @@ export async function dispatchEmails(sqlInput: SqlInput, limit = 20, onlyIds?: s
             ...(process.env.EMAIL_REPLY_TO ? { reply_to: process.env.EMAIL_REPLY_TO } : {}),
             tags: [{ name: "outbox_id", value: m.id.replace(/[^A-Za-z0-9_-]/g, "") }],
           }),
-          signal: AbortSignal.timeout(15_000),
+          signal: AbortSignal.timeout(timeoutMs),
         });
         if (!res.ok) {
           const message = await providerError(res);
@@ -201,7 +206,8 @@ export async function applyProviderEvent(
 
 /**
  * Consulta ao provedor o último evento das mensagens aceitas e ainda sem
- * estado final (dispensa webhook). Respeita o limite de 2 req/s do Resend.
+ * estado final (dispensa webhook). Lotes de 4 em paralelo com pausa curta:
+ * fica abaixo do limite de 10 req/s do Resend e não prende a tela do painel.
  */
 export async function syncDeliveryStatus(sqlInput: SqlInput, limit = 10): Promise<{ checked: number; updated: number }> {
   const sql = sqlInput as unknown as SqlClient;
@@ -212,22 +218,25 @@ export async function syncDeliveryStatus(sqlInput: SqlInput, limit = 10): Promis
     WHERE provider = 'resend' AND provider_message_id IS NOT NULL
       AND delivery_status IN ('accepted','delivery_delayed') AND sent_at > now() - interval '7 days'
     ORDER BY sent_at DESC LIMIT ${limit}`;
-  for (const r of rows) {
-    out.checked++;
+  const checkOne = async (r: { provider_message_id: string }) => {
     try {
       const res = await fetch(`${RESEND_API}/emails/${encodeURIComponent(r.provider_message_id)}`, {
         headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}` },
-        signal: AbortSignal.timeout(10_000),
+        signal: AbortSignal.timeout(8_000),
       });
-      if (res.ok) {
-        const data = await res.json().catch(() => null) as { last_event?: string } | null;
-        const last = data?.last_event;
-        if (last && mapProviderEvent(last) && mapProviderEvent(last) !== "accepted") {
-          if (await applyProviderEvent(sql, { eventId: `poll:${r.provider_message_id}:${last}`, type: last, messageId: r.provider_message_id })) out.updated++;
-        }
+      if (!res.ok) return;
+      const data = await res.json().catch(() => null) as { last_event?: string } | null;
+      const last = data?.last_event;
+      if (last && mapProviderEvent(last) && mapProviderEvent(last) !== "accepted") {
+        if (await applyProviderEvent(sql, { eventId: `poll:${r.provider_message_id}:${last}`, type: last, messageId: r.provider_message_id })) out.updated++;
       }
     } catch { /* tenta de novo na próxima sincronização */ }
-    await new Promise((ok) => setTimeout(ok, 600));
+  };
+  for (let i = 0; i < rows.length; i += 4) {
+    const batch = rows.slice(i, i + 4);
+    out.checked += batch.length;
+    await Promise.all(batch.map(checkOne));
+    if (i + 4 < rows.length) await new Promise((ok) => setTimeout(ok, 450));
   }
   return out;
 }

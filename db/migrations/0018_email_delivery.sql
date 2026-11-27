@@ -27,6 +27,10 @@ ALTER TABLE email_outbox
 CREATE UNIQUE INDEX email_outbox_provider_msg_idx ON email_outbox (provider_message_id) WHERE provider_message_id IS NOT NULL;
 CREATE INDEX email_outbox_org_idx ON email_outbox (org_id, created_at DESC);
 CREATE INDEX email_outbox_invitation_idx ON email_outbox (invitation_id) WHERE invitation_id IS NOT NULL;
+-- Desempenho: teto diário (conta envios nas últimas 24 h) e sincronização de status.
+CREATE INDEX email_outbox_sent_idx ON email_outbox (sent_at) WHERE sent_at IS NOT NULL;
+CREATE INDEX email_outbox_awaiting_delivery_idx ON email_outbox (sent_at DESC)
+  WHERE provider = 'resend' AND delivery_status IN ('accepted','delivery_delayed');
 
 CREATE TABLE email_events (
   id                uuid PRIMARY KEY DEFAULT uuidv7(),

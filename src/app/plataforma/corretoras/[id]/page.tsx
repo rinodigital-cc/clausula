@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requirePlatformAdmin } from "@/lib/auth/web";
 import { isUuid } from "@/lib/db/client";
-import { ACCESS_STATE_LABEL, accessState, brokerageEmailHistory, listBrokerages } from "@/lib/domain/platform";
+import { ACCESS_STATE_LABEL, accessState, brokerageEmailHistory, getBrokerage } from "@/lib/domain/platform";
 import { reissueOwnerAction } from "@/app/actions/admin";
 import { ActionForm } from "@/ui/ActionForm";
 import { SubmitButton } from "@/ui/client";
@@ -27,9 +27,8 @@ export default async function BrokerageDetail({ params }: { params: Promise<{ id
   const actor = await requirePlatformAdmin();
   const { id } = await params;
   if (!isUuid(id)) notFound();
-  const b = (await listBrokerages(actor)).find((x) => x.id === id);
+  const [b, history] = await Promise.all([getBrokerage(actor, id), brokerageEmailHistory(actor, id)]);
   if (!b) notFound();
-  const history = await brokerageEmailHistory(actor, id);
   const state = accessState(b);
 
   return (

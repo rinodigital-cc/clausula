@@ -20,7 +20,7 @@ export async function deliverNow(ids: string[]): Promise<DeliveryAttempt> {
   if (!ids.length) return { accepted: false, provider };
   let accepted = false;
   try {
-    const r = await dispatchEmails(workerPool(), ids.length, ids);
+    const r = await dispatchEmails(workerPool(), ids.length, ids, 8_000);
     accepted = r.sent === ids.length;
   } catch {
     console.error(JSON.stringify({ event: "email_immediate_dispatch_failed", count: ids.length }));
