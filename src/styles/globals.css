@@ -159,6 +159,7 @@ legend { padding: 0; }
 .badge-danger { background: var(--danger-bg); color: var(--danger); }
 .badge-neutral { background: var(--sunken); color: var(--ink-body); }
 .badge-info { background: var(--info-bg); color: var(--info-ink); }
+.badge-success { background: var(--success-bg); color: var(--success); }
 
 /* ---------------------------------------------------------------- avisos */
 .alert { display: flex; gap: 12px; align-items: flex-start; border-radius: var(--r-lg); padding: 13px 16px; font-size: var(--text-sm); line-height: 1.55; }

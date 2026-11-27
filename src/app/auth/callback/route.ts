@@ -5,8 +5,9 @@ import { supabaseAuthEnabled } from "@/lib/supabase/config";
 import { withBootstrap } from "@/lib/db/client";
 import { hashToken, newToken } from "@/lib/auth/password";
 import { SESSION_COOKIE } from "@/lib/auth/web";
+import { relativeRedirect } from "@/lib/http/redirect";
 
-async function finishRecovery(request: NextRequest, userId: string) {
+async function finishRecovery(userId: string) {
   const token = newToken();
   const saved = await withBootstrap("recibo de recuperação Supabase", async db => {
     const [known] = await db`SELECT id FROM users WHERE id = ${userId} AND deleted_at IS NULL`;
@@ -15,15 +16,15 @@ async function finishRecovery(request: NextRequest, userId: string) {
       VALUES (${userId}, ${hashToken(token)}, 'reset', ${new Date(Date.now() + 3600000)})`;
     return true;
   });
-  if (!saved) return NextResponse.redirect(new URL("/recuperar?invalido=1", request.url));
+  if (!saved) return relativeRedirect("/recuperar?invalido=1", 302);
 
   (await cookies()).delete(SESSION_COOKIE);
-  const target = new URL(`/redefinir/${token}`, request.url);
-  const safe = JSON.stringify(target.pathname + target.search);
+  const target = { pathname: `/redefinir/${token}` };
+  const safe = JSON.stringify(target.pathname);
   const html = `<!doctype html>
 <html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Definir nova senha · ApoIA Seguro</title>
-<style>body{font-family:system-ui,-apple-system,sans-serif;background:#f5f7fb;color:#0f172a;display:grid;place-items:center;min-height:100vh;margin:0}.box{max-width:520px;padding:32px;text-align:center}p{color:#64748b}</style>
+<title>Definir nova senha · Vera.ia</title>
+<style>body{font-family:system-ui,-apple-system,sans-serif;background:#F4EDE2;color:#252220;display:grid;place-items:center;min-height:100vh;margin:0}.box{max-width:520px;padding:32px;text-align:center}h1{color:#401C28}p{color:#5E5650}</style>
 </head><body><main class="box"><h1>Acesso validado</h1><p>Direcionando para criar sua nova senha…</p><noscript><a href="${target.pathname}">Continuar</a></noscript></main>
 <script>window.location.replace(${safe});</script></body></html>`;
   return new NextResponse(html, {
@@ -40,7 +41,7 @@ async function finishRecovery(request: NextRequest, userId: string) {
 
 /** Callback de recuperação. Aceita PKCE/token_hash e também links antigos com fragmento. */
 export async function GET(request: NextRequest) {
-  const fail = () => NextResponse.redirect(new URL("/recuperar?invalido=1", request.url));
+  const fail = () => relativeRedirect("/recuperar?invalido=1", 302);
   if (!supabaseAuthEnabled()) return fail();
 
   const client = await authClient();
@@ -56,7 +57,7 @@ export async function GET(request: NextRequest) {
     if (!result || result.error) return fail();
     const { data: { user }, error } = await client.auth.getUser();
     if (error || !user) return fail();
-    return finishRecovery(request, user.id);
+    return finishRecovery(user.id);
   }
 
   // Links antigos do Supabase implicit flow carregam access_token/refresh_token no #fragment,
@@ -64,8 +65,8 @@ export async function GET(request: NextRequest) {
   // estabelece a sessão Supabase e troca por um recibo de reset server-side.
   const html = `<!doctype html>
 <html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Recuperando acesso · ApoIA Seguro</title>
-<style>body{font-family:system-ui,-apple-system,sans-serif;background:#f5f7fb;color:#0f172a;display:grid;place-items:center;min-height:100vh;margin:0}.box{max-width:520px;padding:32px;text-align:center}p{color:#64748b}</style>
+<title>Recuperando acesso · Vera.ia</title>
+<style>body{font-family:system-ui,-apple-system,sans-serif;background:#F4EDE2;color:#252220;display:grid;place-items:center;min-height:100vh;margin:0}.box{max-width:520px;padding:32px;text-align:center}h1{color:#401C28}p{color:#5E5650}</style>
 </head><body><main class="box"><h1>Validando seu acesso…</h1><p>Você será direcionado para criar uma nova senha.</p></main>
 <script>
 (async function(){

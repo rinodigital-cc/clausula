@@ -1,16 +1,27 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
+import { cookies } from "next/headers";
 import { requirePlatformAdmin } from "@/lib/auth/web";
 import { createBrokerage } from "@/lib/domain/platform";
-import { notifyProcessor } from "@/lib/processing";
+import { deliverNow } from "@/lib/email/deliver";
+import { relativeRedirect } from "@/lib/http/redirect";
+import { CREATED_COOKIE } from "@/lib/http/cookies";
 
 const s = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
-const esc = (v: string) => v.replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c]!));
 
+function sameOrigin(request: NextRequest): boolean {
+  const origin = request.headers.get("origin");
+  if (!origin) return true; // navegadores antigos não enviam Origin em POST de formulário
+  const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
+  try { return !!host && new URL(origin).host === host; } catch { return false; }
+}
+
+/** POST nativo (funciona sem JavaScript). Erros internos nunca chegam à tela. */
 export async function POST(request: NextRequest) {
   const actor = await requirePlatformAdmin();
+  if (!sameOrigin(request)) return relativeRedirect("/plataforma/nova?erro=" + encodeURIComponent("Origem da requisição inválida."));
   const form = await request.formData();
   const name = s(form, "nome");
-  const email = s(form, "email");
+  const email = s(form, "email").toLowerCase();
   try {
     const r = await createBrokerage(actor, {
       name,
@@ -20,22 +31,16 @@ export async function POST(request: NextRequest) {
       insurers: s(form, "seguradoras").split(/[\n,;]+/),
       joinAsImplementer: form.get("implantador") === "on",
     });
-    try { await notifyProcessor(); } catch { /* convite manual continua válido */ }
-
-    const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Corretora criada · ApoIA Seguro</title>
-<style>body{font-family:system-ui,-apple-system,sans-serif;background:#f5f7fb;color:#0f172a;margin:0;padding:24px}.box{max-width:720px;margin:40px auto;background:white;border-radius:24px;padding:28px;box-shadow:0 12px 40px #0f172a18}.ok{background:#ecfdf5;color:#065f46;padding:16px;border-radius:14px}.link{display:block;word-break:break-all;background:#f8fafc;padding:14px;border-radius:12px;margin:16px 0}.btn{display:inline-block;padding:12px 18px;border-radius:12px;background:#2563eb;color:white;text-decoration:none;font-weight:700}.muted{color:#64748b}</style></head><body><main class="box">
-<h1>Corretora criada</h1><p class="ok">A corretora <strong>${esc(name)}</strong> foi criada em modo teste.</p>
-<p>Envie este link de primeiro acesso para <strong>${esc(email.toLowerCase())}</strong>. Ele vale por 7 dias e funciona uma vez.</p>
-<code class="link">${esc(r.inviteLink)}</code>
-<p><a class="btn" href="/plataforma">Voltar para corretoras</a></p>
-<p class="muted">Você também pode copiar o link acima manualmente.</p>
-</main></body></html>`;
-    return new NextResponse(html, { status: 200, headers: { "content-type":"text/html; charset=utf-8", "cache-control":"private, no-store", "content-disposition":"inline" }});
+    // A corretora e o convite já estão gravados: falha de envio não desfaz o cadastro.
+    const delivery = await deliverNow([r.emailId]);
+    (await cookies()).set(CREATED_COOKIE, JSON.stringify({ name, email, link: r.inviteLink, orgId: r.orgId, accepted: delivery.accepted, provider: delivery.provider }), {
+      httpOnly: true, sameSite: "strict", secure: process.env.NODE_ENV === "production", path: "/plataforma/nova/criada", maxAge: 600,
+    });
+    return relativeRedirect("/plataforma/nova/criada");
   } catch (e) {
-    const message = e instanceof Error && e.message.length < 300 ? e.message : "Não foi possível criar a corretora.";
-    const url = new URL("/plataforma/nova", request.url);
-    url.searchParams.set("erro", message);
-    return NextResponse.redirect(url, 303);
+    const known = e instanceof Error && /^(Nome|E-mail|Já existe|Apenas)/.test(e.message);
+    const message = known ? (e as Error).message : "Não foi possível criar a corretora. Nada foi enviado; tente novamente.";
+    if (!known) console.error(JSON.stringify({ event: "brokerage_create_failed", message: e instanceof Error ? e.message.slice(0, 200) : "unknown" }));
+    return relativeRedirect("/plataforma/nova?erro=" + encodeURIComponent(message));
   }
 }

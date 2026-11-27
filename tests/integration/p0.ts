@@ -13,9 +13,9 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import postgres from "postgres";
-import { closePools } from "@/lib/db/client";
+import { closePools, withPlatform, withTenant } from "@/lib/db/client";
 import { resolveSession, type Session } from "@/lib/auth/session";
-import { createBrokerage } from "@/lib/domain/platform";
+import { brokerageEmailHistory, createBrokerage, listBrokerages, reissueOwnerInvite } from "@/lib/domain/platform";
 import {
   acceptInvitation,
   inviteMember,
@@ -89,7 +89,7 @@ async function sessionFor(email: string, orgId: string): Promise<Session> {
 async function main() {
   // ---------------------------------------------------------------- setup
   await admin`
-    TRUNCATE email_outbox, leads, lead_rate_limits, usage_events, knowledge_gaps, feedback, message_citations, messages,
+    TRUNCATE email_events, email_limits, email_outbox, leads, lead_rate_limits, usage_events, knowledge_gaps, feedback, message_citations, messages,
              conversations, ingestion_jobs, document_pages, chunk_embeddings, chunks, source_versions, knowledge_sources,
              products, insurers, specialists, org_vector_strategy, rate_limits, password_resets, platform_admins,
              audit_logs, notifications, sessions, invitations, memberships, organizations, users
@@ -119,8 +119,28 @@ async function main() {
     joinAsImplementer: false,
   });
   check("P01", "plataforma cria duas corretoras com convite de proprietário", !!a.orgId && !!b.orgId && a.inviteLink.includes("/convite/"));
-  const [outboxA] = await admin<{ n: number }[]>`SELECT count(*)::int AS n FROM email_outbox WHERE org_id = ${a.orgId} AND kind = 'invitation'`;
-  check("P02", "convite do proprietário vai para a caixa de saída na mesma transação", outboxA?.n === 1, outboxA);
+  const [outboxA] = await admin<{ n: number; linked: number }[]>`
+    SELECT count(*)::int AS n, count(invitation_id)::int AS linked FROM email_outbox WHERE org_id = ${a.orgId} AND kind = 'brokerage_invitation'`;
+  check("P02", "convite do proprietário vai para a caixa de saída na mesma transação, ligado ao convite", outboxA?.n === 1 && outboxA?.linked === 1, outboxA);
+  await expectThrow("E02", "corretora duplicada com convite pendente para o mesmo e-mail é recusada", () =>
+    createBrokerage(operator, { name: "Corretora Serra (teste)", ownerEmail: "bia@serra.teste", insurers: [], joinAsImplementer: false }), /Já existe/);
+  await expectThrow("E03", "reenvio imediato respeita o intervalo mínimo", () => reissueOwnerInvite(operator, b.orgId, "bia@serra.teste"), /Aguarde/);
+  await admin`UPDATE email_outbox SET created_at = created_at - interval '5 minutes' WHERE org_id = ${b.orgId}`;
+  const re = await reissueOwnerInvite(operator, b.orgId, "bia@serra.teste");
+  const [reMail] = await admin<{ kind: string; inv: string | null; pending: number }[]>`
+    SELECT e.kind, e.invitation_id::text AS inv,
+           (SELECT count(*)::int FROM invitations i WHERE i.org_id = ${b.orgId} AND i.accepted_at IS NULL AND i.expires_at > now()) AS pending
+    FROM email_outbox e WHERE e.id = ${re.emailId}`;
+  check("E04", "reenvio gera e-mail de reenvio ligado ao novo convite e mantém um único convite válido", reMail?.kind === "invitation_resend" && !!reMail.inv && reMail.pending === 1, reMail);
+  const oldLinkB = b.inviteLink;
+  b.inviteLink = re.link;
+  check("E05", "link anterior deixa de valer após o reenvio", (await previewInvitation(tokenOf(oldLinkB))).state !== "valid");
+  const rows = await listBrokerages(operator);
+  check("E06", "painel mostra estado 'aguardando envio' sem provedor (nunca 'entregue')", rows.every((r) => r.deliveryStatus !== "delivered") && rows.some((r) => r.emailStatus === "pending"), rows.map((r) => r.emailStatus));
+  const hist = await brokerageEmailHistory(operator, b.orgId);
+  check("E07", "histórico lista as tentativas da corretora", hist.length === 2 && hist.every((h) => !("body_html" in h)), hist.length);
+  await expectThrow("E08", "operador da plataforma não lê corpo nem link do e-mail", () =>
+    withPlatform("teste de privilégio", (db) => db`SELECT body_text FROM email_outbox LIMIT 1`), /permission|permiss/i);
 
   // ---------------------------------------------------------------- P0.2 aceite do proprietário
   const prev = await previewInvitation(tokenOf(a.inviteLink));
@@ -337,6 +357,12 @@ async function main() {
   const [resets] = await admin<{ n: number }[]>`SELECT count(*)::int AS n FROM password_resets`;
   check("R05", "redefinição só gera link para e-mail existente", !!resetToken && resets?.n === 1, resets);
   await resetPassword(resetToken!, "nova-senha-2026");
+  const [changed] = await admin<{ n: number }[]>`SELECT count(*)::int AS n FROM email_outbox WHERE kind = 'password_changed' AND to_email = 'marina@horizonte.teste'`;
+  check("E09", "troca de senha gera aviso de segurança por e-mail", changed?.n === 1, changed);
+  const [welcome] = await admin<{ n: number }[]>`SELECT count(*)::int AS n FROM email_outbox WHERE kind = 'welcome'`;
+  check("E10", "primeiro acesso gera e-mail de boas-vindas", (welcome?.n ?? 0) >= 3, welcome);
+  await expectThrow("E11", "tabela de limites não é acessível diretamente pelo papel de aplicação", () =>
+    withTenant(ownerA, (tx) => tx`SELECT * FROM email_limits`), /permission|permiss/i);
   await expectThrow("R06", "link de redefinição é de uso único", () => resetPassword(resetToken!, "outra-senha-2026"), /inválido|expirado/i);
 
   const lead0 = await submitLead({ name: "", email: "x", consent: false });
