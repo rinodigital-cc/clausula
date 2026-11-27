@@ -23,7 +23,7 @@ test("transporte file não envia e-mail mesmo com chave configurada", async () =
     process.env.STORAGE_DIR = dir;
     globalThis.fetch = async () => { throw new Error("Transporte file não pode fazer requisição HTTP"); };
     const result = await dispatchEmails(sql as unknown as Parameters<typeof dispatchEmails>[0]);
-    assert.deepEqual(result, { sent: 0, skipped: 1, failed: 0 });
+    assert.deepEqual(result, { sent: 0, skipped: 1, failed: 0, deferred: 0 });
     assert.deepEqual(await readdir(path.join(dir, "outbox")), ["simulacao.eml"]);
     assert.ok(updates.some(query => query.includes("'skipped'")));
     assert.ok(updates.every(query => !query.includes("'sent'")));
@@ -43,7 +43,7 @@ test("Vercel mantém e-mail pendente sem provedor e não grava em disco", async 
     process.env.EMAIL_TRANSPORT = "file";
     let called = false;
     const sql = async () => { called = true; throw new Error("Não pode consumir a fila sem provedor"); };
-    assert.deepEqual(await dispatchEmails(sql as unknown as Parameters<typeof dispatchEmails>[0]), { sent: 0, skipped: 0, failed: 0 });
+    assert.deepEqual(await dispatchEmails(sql as unknown as Parameters<typeof dispatchEmails>[0]), { sent: 0, skipped: 0, failed: 0, deferred: 0 });
     assert.equal(called, false);
   } finally { process.env = saved; }
 });
