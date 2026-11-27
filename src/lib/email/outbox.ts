@@ -28,16 +28,16 @@ function esc(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 }
 
-const BRAND_NAME = "ApoIA Seguro";
-const BRAND_HTML = `Apo<span style="color:#8DB8FF">IA</span> <span style="font-weight:400">Seguro</span>`;
+const BRAND_NAME = "Vera.ia";
+const BRAND_HTML = `Vera<span style="color:#8BE5BA">.ia</span>`;
 const FOOTER =
-  "ApoIA Seguro · Inteligência para corretores de seguros. As respostas apoiam a análise do corretor e mostram a fonte; não substituem a apólice nem a seguradora.";
+  "Vera.ia · Inteligência para corretores de seguros. As respostas apoiam a análise do corretor e mostram a fonte; não substituem a apólice nem a seguradora.";
 
 function layout(title: string, bodyHtml: string, reason: string): string {
   return `<!doctype html><html lang="pt-BR"><body style="margin:0;background:#EDF1F6;font-family:Inter,Arial,sans-serif;color:#2A3545">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 16px">
-<table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;background:#FFFFFF;border-radius:16px;overflow:hidden">
-<tr><td style="background:#12305C;padding:22px 32px;color:#FFFFFF;font-size:20px;font-weight:700;letter-spacing:-0.3px">${BRAND_HTML}</td></tr>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#FFFFFF;border-radius:16px;overflow:hidden">
+<tr><td style="background:#102C46;padding:22px 32px;color:#FFFFFF;font-size:20px;font-weight:700;letter-spacing:-0.3px">${BRAND_HTML}</td></tr>
 <tr><td style="padding:32px">
 <h1 style="margin:0 0 16px;font-family:Inter,Arial,sans-serif;font-weight:700;font-size:24px;line-height:1.25;letter-spacing:-0.3px;color:#0F1A2A">${esc(title)}</h1>
 ${bodyHtml}
@@ -47,8 +47,8 @@ ${bodyHtml}
 }
 
 function button(href: string, label: string): string {
-  return `<p style="margin:24px 0"><a href="${esc(href)}" style="background:#1B4DB1;color:#FFFFFF;text-decoration:none;padding:14px 22px;border-radius:10px;font-weight:600;display:inline-block">${esc(label)}</a></p>
-<p style="font-size:13px;color:#586577">Se o botão não funcionar, copie este endereço no navegador:<br><span style="color:#1B4DB1;word-break:break-all">${esc(href)}</span></p>`;
+  return `<p style="margin:24px 0"><a href="${esc(href)}" style="background:#12644E;color:#FFFFFF;text-decoration:none;padding:14px 22px;border-radius:10px;font-weight:600;display:inline-block">${esc(label)}</a></p>
+<p style="font-size:13px;color:#586577">Se o botão não funcionar, copie este endereço no navegador:<br><span style="color:#12644E;word-break:break-all">${esc(href)}</span></p>`;
 }
 
 export function invitationEmail(p: {
