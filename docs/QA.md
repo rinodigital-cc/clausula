@@ -1,6 +1,6 @@
 # QA — Vera.ia
 
-## Resultado local (26/11/2026, banco PostgreSQL 16 + pgvector descartável)
+## Resultado local (27/11/2026, reexecutado após rebase sobre `8149bd9`; PostgreSQL 16 + pgvector descartável, recriado do zero)
 
 | Suíte | Resultado |
 |---|---|
@@ -16,6 +16,20 @@
 | E2E Playwright | **Não executado localmente** (navegador indisponível neste ambiente). Roda no GitHub Actions após o push. |
 
 Casos novos de integração: E02 duplicidade recusada · E03 reenvio imediato bloqueado · E04 reenvio ligado ao novo convite, um único convite válido · E05 link anterior invalidado · E06 painel nunca mostra "entregue" sem provedor · E07 histórico · E08 operador não lê corpo/link · E09 aviso de senha alterada · E10 boas-vindas · E11 tabela de limites inacessível.
+
+## Desempenho (27/11/2026, banco local com volume SIMULADO: 400 corretoras, 20 mil e-mails)
+
+| Operação | Mediana | Pior de 5 |
+|---|---|---|
+| Painel: lista de corretoras com estado do convite | 21,3 ms | 24,3 ms |
+| Detalhe de uma corretora | 1,1 ms | 1,3 ms |
+| Histórico de envios da corretora | 0,3 ms | 0,5 ms |
+| Despacho: varredura da fila + teto diário | 8,6 ms | 9,2 ms |
+| `/api/saude` (build de produção) | 1 ms | — |
+
+Medidas de desempenho aplicadas: índices para teto diário e status pendente de entrega; detalhe busca só a corretora pedida (antes carregava a lista inteira); lista limitada a 500; consulta de status em lotes paralelos de 4 (antes 600 ms por mensagem, até 6 s presos na tela); envio imediato com tempo-limite de 8 s (sem perder a mensagem: volta para a fila com a mesma chave de idempotência).
+
+Latência de rede real (Vercel ↔ Supabase ↔ Resend) só pode ser medida na homologação.
 
 ## Roteiro em homologação (evidência real exigida)
 

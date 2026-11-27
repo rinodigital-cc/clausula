@@ -1,6 +1,6 @@
 # VERA-STATUS — acompanhamento da entrega
 
-Atualizado: 26/11/2026. Branch: `vera/email-convites-homologacao` (sobre `apoia/redesign-fluida@afd61cb`).
+Atualizado: 27/11/2026. Branch: `vera/email-convites-homologacao` (sobre `apoia/redesign-fluida@8149bd9`).
 Regras mantidas: custo R$ 0, produção intocada, sem merge na `main`, sem credenciais em chat/Git/log.
 
 ## 1. Auditoria (fatos verificados)
@@ -15,6 +15,8 @@ Regras mantidas: custo R$ 0, produção intocada, sem merge na `main`, sem crede
 | DNS | NS Registro.br (`e/f.sec.dns.br`); MX `smtp.google.com` (preservar); TXT google-site-verification; **sem SPF, sem DMARC**; `homolog.apoiaseguro.com.br` **não existe** (NXDOMAIN). | consultas DNS públicas |
 | Build | Next 16.4.3 bloqueava o build por vulnerabilidade conhecida → 16.4.6. | saída do `next build` |
 | Linha de base | lint OK; 27+5+7 unitários; 47 isolamento; 68 integração. | execução local |
+| Commit de 27/11 (`8149bd9`) | Trocou as cores dos e-mails para azul-marinho/verde, fora da paleta oficial. Esta branch mantém vinho/coral (igual às telas). | rebase |
+| Push | Negado 4 vezes pelo controle de segurança da sessão | tentativas em 26 e 27/11 |
 
 ## 2. Decisões técnicas
 
