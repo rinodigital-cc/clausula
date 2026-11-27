@@ -24,7 +24,7 @@ Aditiva (só `ADD COLUMN`, tabelas e função novas). Aplicar com `npm run db:mi
 
 ```sql
 INSERT INTO schema_migrations (name, checksum)
-VALUES ('0018_email_delivery.sql', 'd571b03f8227efdc95cf7cdf85dcb9d4546d40cdef924fc47d169d37df1909b1');
+VALUES ('0018_email_delivery.sql', 'dce816137ef21f67d2bc0119dc8ffbefc135ee9dedaceee381af43293f0b7d64');
 ```
 
 Conferir antes: `SELECT name FROM schema_migrations ORDER BY name DESC LIMIT 3;` deve terminar em `0017_gateway_uuid_permissions.sql`. Nunca rodar as suítes de teste (fazem TRUNCATE) contra o Supabase.
