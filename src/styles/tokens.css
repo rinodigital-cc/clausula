@@ -1,0 +1,101 @@
+/* Vera.ia — tokens semânticos. Ações usam coral escuro para contraste; estados funcionais preservam semântica. */
+
+:root {
+  
+  --brand-navy: #401c28;          
+  --brand-ia: #a63829;            
+  --brand-ia-light: #f26445;      
+
+  
+  --canvas: #f4ede2;
+  --surface: #ffffff;
+  --surface-glass: rgba(255, 255, 255, 0.78);
+  --surface-soft: #fcf7f0;        
+  --sunken: #eee1d5;
+  --line: #e6d5c8;
+  --line-strong: #c9ad9e;
+  --ring: rgba(15, 30, 60, 0.06); 
+  --aura-blue: rgba(242, 100, 69, 0.16);
+  --aura-green: rgba(245, 181, 68, 0.12);
+
+  
+  --ink: #401c28;
+  --ink-body: #252220;
+  --ink-muted: #66534d;
+  --ink-faint: #715b53;
+
+  
+  --action: #a63829;              
+  --action-2: #b63e2d;            
+  --action-hover: #84291e;
+  --on-action: #ffffff;
+  --accent: #a63829;
+  --accent-bg: #fae6dc;           
+  --accent-line: #edb8a6;
+  --focus: #a63829;
+
+  
+  --evidence: #67402e;            
+  --evidence-dot: #a65b32;        
+  --evidence-bg: #f4e5d4;
+  --evidence-bg-2: #fcf6ee;
+  --evidence-line: #dfc5aa;
+  --highlight: #f9dfaa;           
+
+  
+  --success: #1e7a4c;
+  --success-bg: #e9f7ef;
+  --success-line: #bfe2cd;
+  --warn-ink: #5a3a00;            
+  --warn-icon: #8a5a00;
+  --warn-chip: #f5b544;           
+  --warn-bg: #fff4dc;
+  --warn-bg-2: #fff9ee;
+  --warn-line: #f2d9a6;
+  --danger: #b42318;
+  --danger-bg: #fdecea;
+  --danger-line: #f1c4bf;
+  --info-ink: #1f4e79;
+  --info-bg: #eef4fb;
+  --info-line: #c7d9ee;
+
+  
+  --font-sans: InterVariable, "Inter Variable", Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-heading: var(--font-sans);
+  --font-document: "Newsreader Variable", Newsreader, Georgia, "Times New Roman", serif;
+  --font-display: var(--font-document);
+  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --text-xs: 0.75rem;   
+  --text-sm: 0.875rem;  
+  --text-md: 1rem;      
+  --text-lg: 1.125rem;  
+  --text-xl: 1.375rem;  
+  --text-2xl: 1.875rem; 
+  --text-3xl: clamp(2rem, 3.4vw, 2.625rem);  
+  --text-4xl: clamp(2.5rem, 5vw, 4rem);
+
+  
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 20px; --s-6: 24px;
+  --s-8: 32px; --s-10: 40px; --s-12: 48px; --s-16: 64px; --s-20: 80px; --s-24: 96px;
+
+  
+  --r-xs: 6px; --r-sm: 9px; --r-md: 12px; --r-lg: 16px; --r-xl: 22px; --r-2xl: 26px; --r-full: 999px;
+
+  
+  --shadow-1: 0 1px 2px rgba(64, 28, 40, 0.06), 0 0 0 1px var(--ring);
+  --shadow-2: 0 14px 34px -22px rgba(64, 28, 40, 0.35), 0 0 0 1px var(--ring);
+  --shadow-3: 0 28px 64px -30px rgba(64, 28, 40, 0.42), 0 0 0 1px var(--ring);
+  --shadow-action: 0 10px 22px -10px rgba(166, 56, 41, 0.85);
+  --shadow-evidence: 0 6px 14px -6px rgba(103, 64, 46, 0.7);
+
+  
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-inout: cubic-bezier(0.6, 0, 0.2, 1);
+  --dur-1: 140ms; --dur-2: 220ms; --dur-3: 420ms; --dur-4: 700ms;
+
+  
+  --container: 1200px;
+  --gutter: max(16px, 3.2vw);
+  --tap: 44px;
+}

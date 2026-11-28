@@ -1,0 +1,19 @@
+{
+  "name": "Vera.ia",
+  "short_name": "Vera.ia",
+  "description": "IA que apoia o corretor com respostas técnicas sobre seguros, com base documental.",
+  "lang": "pt-BR",
+  "start_url": "/app",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#F4EDE2",
+  "theme_color": "#401C28",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+# For a Docker host with persistent volumes. Do NOT run migrations against production databases.
+# Set all required secrets in a private .env.deploy file on the server (never commit it).
+services:
+  web:
+    build:
+      context: .
+      target: web
+    env_file: .env.deploy
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - apoia_pdfs:/data/pdf
+    restart: unless-stopped
+    environment:
+      STORAGE_DIR: /data/pdf
+  worker:
+    build:
+      context: .
+      target: worker
+    env_file: .env.deploy
+    volumes:
+      - apoia_pdfs:/data/pdf
+    restart: unless-stopped
+    environment:
+      STORAGE_DIR: /data/pdf
+volumes:
+  apoia_pdfs:
