@@ -26,7 +26,7 @@ export default async function ConvitePage({ params }: { params: Promise<{ token:
                 Papel: <b>{ROLE_LABEL[invite.role]}</b> · e-mail <b>{invite.email}</b> · vale até {formatDate(invite.expiresAt)}.
               </p>
               <p className="muted">
-                Na ApoIA Seguro você consulta condições gerais e documentos da corretora com apoio de IA, e cada resposta mostra o trecho de onde veio.
+                Na Vera.ia você consulta condições gerais e documentos da corretora com apoio de IA, e cada resposta mostra o trecho de onde veio.
               </p>
             </div>
             <InviteForms

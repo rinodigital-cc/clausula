@@ -51,7 +51,7 @@ export function InviteForms({
       <div className="field">
         <label htmlFor="senha">Crie uma senha</label>
         <input id="senha" name="senha" type="password" className="input" autoComplete="new-password" minLength={10} required aria-describedby="senha-ajuda" />
-        <span id="senha-ajuda" className="help">Mínimo de 10 caracteres, com letras e números. Ninguém da ApoIA Seguro pede sua senha.</span>
+        <span id="senha-ajuda" className="help">Mínimo de 10 caracteres, com letras e números. Ninguém da Vera.ia pede sua senha.</span>
       </div>
       <div className="field">
         <label htmlFor="confirmacao">Confirme a senha</label>

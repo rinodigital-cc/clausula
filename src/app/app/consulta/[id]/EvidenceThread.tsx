@@ -7,7 +7,7 @@ type Geo = { d: string; x1: number; y1: number; x2: number; y2: number; len: num
 
 /**
  * Fio de evidência: liga a afirmação ativa (na resposta) ao trecho grifado
- * (no documento). É a assinatura visual da ApoIA Seguro: mostra, sem precisar
+ * (no documento). É a assinatura visual da Vera.ia: mostra, sem precisar
  * ler legenda, de onde veio cada frase.
  *
  * Puramente decorativo (aria-hidden): a mesma ligação existe em texto, no

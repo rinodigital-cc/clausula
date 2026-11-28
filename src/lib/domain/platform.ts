@@ -1,12 +1,11 @@
 import "server-only";
 import { withPlatform } from "@/lib/db/client";
 import { hashToken, newToken } from "@/lib/auth/password";
-import { appUrl, enqueueEmail, invitationEmail } from "@/lib/email/outbox";
-import { ROLE_LABEL } from "@/lib/authz/policy";
+import { appUrl, brokerageInvitationEmail, enqueueEmail } from "@/lib/email/outbox";
 import type { CurrentUser } from "@/lib/auth/web";
 
 /**
- * Operações do operador da plataforma (administrador da ApoIA Seguro).
+ * Operações do operador da plataforma (administrador da Vera.ia).
  * Papel de banco `app_platform`: enxerga metadados de corretoras, nunca
  * documentos, trechos ou conversas.
  */
@@ -39,7 +38,7 @@ export type BrokerageInput = {
 export async function createBrokerage(
   actor: CurrentUser,
   input: BrokerageInput,
-): Promise<{ orgId: string; inviteLink: string }> {
+): Promise<{ orgId: string; inviteLink: string; emailId: string }> {
   assertPlatform(actor);
   const name = input.name.trim();
   const ownerEmail = input.ownerEmail.trim().toLowerCase();
@@ -51,7 +50,16 @@ export async function createBrokerage(
   const token = newToken();
   const expiresAt = new Date(Date.now() + INVITE_TTL_DAYS * 864e5);
 
-  const orgId = await withPlatform("criação de corretora", (db) =>
+  // Duplicidade: mesmo responsável com convite pendente para corretora de mesmo nome.
+  const [dup] = await withPlatform("verificação de duplicidade de corretora", (db) =>
+    db<{ id: string }[]>`
+      SELECT o.id FROM organizations o JOIN invitations i ON i.org_id = o.id
+      WHERE o.deleted_at IS NULL AND lower(o.name) = lower(${name}) AND i.email = ${ownerEmail}
+        AND i.role = 'owner' AND i.accepted_at IS NULL AND i.expires_at > now()
+      LIMIT 1`);
+  if (dup) throw new Error("Já existe esta corretora com convite pendente para este e-mail. Use “Reenviar convite”.");
+
+  const { orgId, emailId } = await withPlatform("criação de corretora", (db) =>
     db.begin(async (tx) => {
       let slug = base;
       for (let i = 2; i <= 50; i++) {
@@ -79,32 +87,32 @@ export async function createBrokerage(
           VALUES (${id}, ${actor.userId}, 'admin', ${actor.userId})
         `;
       }
-      await tx`
+      const [invite] = await tx<{ id: string }[]>`
         INSERT INTO invitations (org_id, email, role, token_hash, invited_by, expires_at)
         VALUES (${id}, ${ownerEmail}, 'owner', ${hashToken(token)}, ${actor.userId}, ${expiresAt})
+        RETURNING id
       `;
       await tx`
         INSERT INTO audit_logs (org_id, actor_id, action, entity_type, entity_id, metadata)
         VALUES (${id}, ${actor.userId}, 'organization.created', 'organization', ${id},
                 ${JSON.stringify({ by: "platform", implementer: input.joinAsImplementer, insurers: insurers.length })}::text::jsonb)
       `;
-      await enqueueEmail(
+      const emailId = await enqueueEmail(
         tx as never,
-        invitationEmail({
+        brokerageInvitationEmail({
           orgId: id,
           to: ownerEmail,
           orgName: name,
-          inviterName: "A equipe ApoIA Seguro",
-          roleLabel: ROLE_LABEL.owner,
           link: appUrl(`/convite/${token}`),
           expiresDays: INVITE_TTL_DAYS,
+          invitationId: invite!.id,
         }),
       );
-      return id;
+      return { orgId: id, emailId };
     }),
   );
 
-  return { orgId, inviteLink: appUrl(`/convite/${token}`) };
+  return { orgId, emailId, inviteLink: appUrl(`/convite/${token}`) };
 }
 
 export type BrokerageRow = {
@@ -120,9 +128,19 @@ export type BrokerageRow = {
   docsFailed: number;
   ownerEmail: string | null;
   ownerPending: string | null;
+  inviteExpiresAt: Date | null;
+  emailStatus: string | null;
+  deliveryStatus: string | null;
+  emailError: string | null;
+  emailSentAt: Date | null;
+  emailCreatedAt: Date | null;
+  emailProviderId: string | null;
+  emailAttempts: number | null;
 };
 
-export async function listBrokerages(actor: CurrentUser): Promise<BrokerageRow[]> {
+export { ACCESS_STATE_LABEL, accessState, type AccessState } from "./access-state";
+
+export async function listBrokerages(actor: CurrentUser, onlyOrgId?: string): Promise<BrokerageRow[]> {
   assertPlatform(actor);
   return withPlatform("lista de corretoras", (db) =>
     db<BrokerageRow[]>`
@@ -134,11 +152,26 @@ export async function listBrokerages(actor: CurrentUser): Promise<BrokerageRow[]
         (SELECT count(*)::int FROM source_versions v WHERE v.org_id = o.id AND v.status = 'failed') AS "docsFailed",
         (SELECT u.email::text FROM memberships m JOIN users u ON u.id = m.user_id
            WHERE m.org_id = o.id AND m.role = 'owner' AND m.status = 'active' LIMIT 1) AS "ownerEmail",
-        (SELECT i.email::text FROM invitations i WHERE i.org_id = o.id AND i.role = 'owner'
-           AND i.accepted_at IS NULL ORDER BY i.created_at DESC LIMIT 1) AS "ownerPending"
+        inv.email AS "ownerPending", inv.expires_at AS "inviteExpiresAt",
+        em.status AS "emailStatus", em.delivery_status AS "deliveryStatus", em.last_error AS "emailError",
+        em.sent_at AS "emailSentAt", em.created_at AS "emailCreatedAt", em.provider_message_id AS "emailProviderId",
+        em.attempts AS "emailAttempts"
       FROM organizations o
-      WHERE o.deleted_at IS NULL
+      LEFT JOIN LATERAL (
+        SELECT i.id, i.email::text AS email, i.expires_at FROM invitations i
+        WHERE i.org_id = o.id AND i.role = 'owner' AND i.accepted_at IS NULL
+        ORDER BY i.updated_at DESC, i.created_at DESC LIMIT 1
+      ) inv ON true
+      LEFT JOIN LATERAL (
+        SELECT e.status, e.delivery_status, e.last_error, e.sent_at, e.created_at, e.provider_message_id, e.attempts
+        FROM email_outbox e
+        WHERE e.org_id = o.id AND e.kind IN ('brokerage_invitation','invitation_resend','invitation')
+          AND (inv.id IS NULL OR e.invitation_id = inv.id OR e.invitation_id IS NULL)
+        ORDER BY e.created_at DESC LIMIT 1
+      ) em ON true
+      WHERE o.deleted_at IS NULL AND (${onlyOrgId ?? null}::uuid IS NULL OR o.id = ${onlyOrgId ?? null}::uuid)
       ORDER BY o.created_at DESC
+      LIMIT 500
     `,
   );
 }
@@ -158,14 +191,26 @@ export async function setBrokerageStatus(actor: CurrentUser, orgId: string, stat
   );
 }
 
+/** Intervalo mínimo entre reenvios e teto diário por corretora (protege a franquia gratuita). */
+export const REISSUE_COOLDOWN_SECONDS = Math.max(0, Number(process.env.EMAIL_REISSUE_COOLDOWN_SECONDS ?? 120) || 0);
+export const REISSUE_DAILY_LIMIT = 5;
+
 /** Reemite o convite de proprietário (o anterior deixa de valer). */
-export async function reissueOwnerInvite(actor: CurrentUser, orgId: string, email: string): Promise<string> {
+export async function reissueOwnerInvite(actor: CurrentUser, orgId: string, email: string): Promise<{ link: string; emailId: string }> {
   assertPlatform(actor);
   const to = email.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) throw new Error("E-mail do responsável inválido.");
   const token = newToken();
   const expiresAt = new Date(Date.now() + INVITE_TTL_DAYS * 864e5);
-  await withPlatform("reemissão de convite de proprietário", (db) =>
+  const emailId = await withPlatform("reemissão de convite de proprietário", (db) =>
     db.begin(async (tx) => {
+      const [recent] = await tx<{ n: number }[]>`
+        SELECT count(*)::int AS n FROM email_outbox
+        WHERE org_id = ${orgId} AND kind IN ('brokerage_invitation','invitation_resend','invitation')
+          AND created_at > now() - make_interval(secs => ${REISSUE_COOLDOWN_SECONDS})`;
+      if ((recent?.n ?? 0) > 0) throw new Error("Um convite acabou de ser enviado. Aguarde 2 minutos antes de reenviar.");
+      const [ok] = await tx<{ ok: boolean }[]>`SELECT consume_email_limit(${`reissue:${orgId}`}, ${REISSUE_DAILY_LIMIT}, interval '1 day') AS ok`;
+      if (!ok?.ok) throw new Error(`Limite de ${REISSUE_DAILY_LIMIT} reenvios por dia para esta corretora atingido.`);
       const [org] = await tx<{ name: string }[]>`SELECT name FROM organizations WHERE id = ${orgId}`;
       if (!org) throw new Error("Corretora não encontrada.");
       const [owner] = await tx`SELECT 1 FROM memberships WHERE org_id = ${orgId} AND role = 'owner' AND status = 'active'`;
@@ -174,27 +219,33 @@ export async function reissueOwnerInvite(actor: CurrentUser, orgId: string, emai
         UPDATE invitations SET expires_at = now()
         WHERE org_id = ${orgId} AND role = 'owner' AND accepted_at IS NULL
       `;
-      await tx`
+      const [invite] = await tx<{ id: string }[]>`
         INSERT INTO invitations (org_id, email, role, token_hash, invited_by, expires_at)
         VALUES (${orgId}, ${to}, 'owner', ${hashToken(token)}, ${actor.userId}, ${expiresAt})
         ON CONFLICT (org_id, email) WHERE accepted_at IS NULL
         DO UPDATE SET token_hash = EXCLUDED.token_hash, role = 'owner', expires_at = EXCLUDED.expires_at
+        RETURNING id
       `;
-      await enqueueEmail(
+      await tx`
+        INSERT INTO audit_logs (org_id, actor_id, action, entity_type, entity_id, metadata)
+        VALUES (${orgId}, ${actor.userId}, 'invitation.reissued', 'invitation', ${invite!.id},
+                ${JSON.stringify({ by: "platform" })}::text::jsonb)
+      `;
+      return enqueueEmail(
         tx as never,
-        invitationEmail({
+        brokerageInvitationEmail({
           orgId,
           to,
           orgName: org.name,
-          inviterName: "A equipe ApoIA Seguro",
-          roleLabel: ROLE_LABEL.owner,
           link: appUrl(`/convite/${token}`),
           expiresDays: INVITE_TTL_DAYS,
+          resend: true,
+          invitationId: invite!.id,
         }),
       );
     }),
   );
-  return appUrl(`/convite/${token}`);
+  return { link: appUrl(`/convite/${token}`), emailId };
 }
 
 export type LeadRow = {
@@ -225,4 +276,40 @@ export async function setLeadStatus(actor: CurrentUser, leadId: string, status: 
   assertPlatform(actor);
   if (!["new", "contacted", "qualified", "discarded"].includes(status)) throw new Error("Situação inválida.");
   await withPlatform("situação de interessado", (db) => db`UPDATE leads SET status = ${status} WHERE id = ${leadId}`);
+}
+
+/** Uma corretora (página de detalhe) sem carregar a lista inteira. */
+export async function getBrokerage(actor: CurrentUser, orgId: string): Promise<BrokerageRow | null> {
+  return (await listBrokerages(actor, orgId))[0] ?? null;
+}
+
+export type EmailHistoryRow = {
+  id: string;
+  kind: string;
+  to: string;
+  status: string;
+  deliveryStatus: string | null;
+  attempts: number;
+  lastError: string | null;
+  createdAt: Date;
+  sentAt: Date | null;
+  deliveredAt: Date | null;
+  providerId: string | null;
+  events: { type: string; at: string }[];
+};
+
+/** Histórico de tentativas de envio de uma corretora (metadados; nunca corpo ou link). */
+export async function brokerageEmailHistory(actor: CurrentUser, orgId: string): Promise<EmailHistoryRow[]> {
+  assertPlatform(actor);
+  return withPlatform("histórico de envios da corretora", (db) =>
+    db<EmailHistoryRow[]>`
+      SELECT e.id, e.kind, e.to_email::text AS "to", e.status, e.delivery_status AS "deliveryStatus", e.attempts,
+             e.last_error AS "lastError", e.created_at AS "createdAt", e.sent_at AS "sentAt",
+             e.delivered_at AS "deliveredAt", e.provider_message_id AS "providerId",
+             coalesce((SELECT json_agg(json_build_object('type', ev.type, 'at', ev.received_at) ORDER BY ev.received_at)
+                       FROM email_events ev WHERE ev.outbox_id = e.id), '[]'::json) AS events
+      FROM email_outbox e
+      WHERE e.org_id = ${orgId}
+      ORDER BY e.created_at DESC LIMIT 30`,
+  );
 }

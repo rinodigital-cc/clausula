@@ -85,12 +85,14 @@ test("operador cria corretora, reemite convite, suspende e reativa", async ({ pa
   await page.getByLabel("E-mail do responsável").fill("dono@e2e.test");
   await page.getByRole("button", { name: "Criar corretora", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Corretora criada", exact: true })).toBeVisible();
-  await expect(page.getByText("criada em modo teste")).toBeVisible();
+  await expect(page.getByText("começa em modo teste")).toBeVisible();
+  await expect(page.getByText("E-mail não configurado neste ambiente")).toBeVisible();
   const original = await page.locator("code").innerText();
-  await page.getByRole("link", { name: "Voltar para corretoras", exact: true }).click();
+  await page.getByRole("link", { name: "Ver corretoras", exact: true }).click();
   const row = page.getByRole("row").filter({ hasText: "Corretora E2E (SIMULAÇÃO)" });
+  await expect(row.getByText("Não enviado · sem provedor", { exact: true })).toBeVisible();
   await row.getByText("Reenviar convite", { exact: true }).click();
-  await row.getByRole("button", { name: "Gerar novo convite" }).click();
+  await row.getByRole("button", { name: "Enviar novo convite" }).click();
   await expect(row.getByRole("status")).toContainText("anterior deixou de valer");
   const renewed = await row.locator("code").innerText();
   expect(renewed).not.toBe(original);

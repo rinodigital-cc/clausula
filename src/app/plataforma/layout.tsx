@@ -13,7 +13,7 @@ export default async function PlatformLayout({ children }: { children: React.Rea
     <>
       <header className="app-header">
         <div className="inner">
-          <Link href="/plataforma" className="brandmark" aria-label="ApoIA Seguro: painel da plataforma"><Wordmark size={19} /></Link>
+          <Link href="/plataforma" className="brandmark" aria-label="Vera.ia: painel da plataforma"><Wordmark size={19} /></Link>
           <div className="header-end">
             <span>{user.name}</span>
             {user.activeOrgId ? <Link className="btn btn-ghost btn-sm" href="/app">Abrir corretora</Link> : null}

@@ -7,7 +7,8 @@ import type { Session } from "@/lib/auth/session";
 import { recordAudit } from "@/lib/audit";
 import { authorize, canRemoveMember, ROLE_LABEL, ROLES, type Role } from "@/lib/authz/policy";
 import { hashPassword, hashToken, newToken, passwordProblem } from "@/lib/auth/password";
-import { appUrl, enqueueEmail, invitationEmail } from "@/lib/email/outbox";
+import { appUrl, enqueueEmail, invitationEmail, welcomeEmail } from "@/lib/email/outbox";
+import { deliverNow } from "@/lib/email/deliver";
 
 /**
  * Equipe e convites (herdado da versão anterior do produto, Milestone 1, com aceite e cadastro).
@@ -37,7 +38,7 @@ export type PendingInvite = { id: string; email: string; role: Role; expiresAt: 
 export async function inviteMember(
   session: Session,
   input: { email: string; role: string },
-): Promise<{ inviteId: string; link: string }> {
+): Promise<{ inviteId: string; link: string; emailId: string }> {
   authorize(session, "member.manage");
   assertAssignableRole(input.role);
   const email = input.email.trim().toLowerCase();
@@ -72,7 +73,7 @@ export async function inviteMember(
       WHERE o.id = (SELECT current_org()) AND u.id = ${session.userId}
     `;
     const link = appUrl(`/convite/${token}`);
-    await enqueueEmail(
+    const emailId = await enqueueEmail(
       tx,
       invitationEmail({
         orgId: session.orgId,
@@ -82,6 +83,7 @@ export async function inviteMember(
         roleLabel: ROLE_LABEL[input.role as keyof typeof ROLE_LABEL] ?? input.role,
         link,
         expiresDays: INVITE_TTL_DAYS,
+        invitationId: row.id,
       }),
     );
     await recordAudit(tx, {
@@ -91,7 +93,7 @@ export async function inviteMember(
       entityId: row.id,
       metadata: { email, role: input.role },
     });
-    return { inviteId: row.id, link };
+    return { inviteId: row.id, link, emailId };
   });
 }
 
@@ -172,7 +174,7 @@ export async function registerAndAccept(input: {
   if (problem) throw new Error(problem);
   const passwordHash = await hashPassword(input.password);
 
-  return withBootstrap("primeiro acesso por convite", (db) =>
+  const done = await withBootstrap("primeiro acesso por convite", (db) =>
     db.begin(async (tx) => {
       const [invite] = await tx<{ email: string }[]>`
         SELECT email::text AS email FROM invitations
@@ -192,9 +194,13 @@ export async function registerAndAccept(input: {
         if (error) throw new Error("Não foi possível autenticar o novo acesso.");
       }
       const { orgId } = await acceptInTx(tx as unknown as PrivilegedSql, input.token, user!.id);
-      return { userId: user!.id, orgId };
+      const [org] = await tx<{ name: string }[]>`SELECT name FROM organizations WHERE id = ${orgId}`;
+      const emailId = await enqueueEmail(tx as never, welcomeEmail({ orgId, to: invite.email, name, orgName: org?.name ?? "sua corretora", link: appUrl("/entrar") }));
+      return { userId: user!.id, orgId, emailId };
     }),
-  ) as Promise<{ userId: string; orgId: string }>;
+  ) as { userId: string; orgId: string; emailId: string };
+  await deliverNow([done.emailId]);
+  return { userId: done.userId, orgId: done.orgId };
 }
 
 export async function listMembers(session: Session): Promise<Member[]> {

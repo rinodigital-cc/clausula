@@ -27,6 +27,6 @@ export default defineConfig({
     url: "http://localhost:3000/api/saude",
     reuseExistingServer: false,
     timeout: 120_000,
-    env: { NEXT_TELEMETRY_DISABLED: "1", ANTHROPIC_API_KEY: "", RESEND_API_KEY: "", EMAIL_TRANSPORT: "file" },
+    env: { NEXT_TELEMETRY_DISABLED: "1", ANTHROPIC_API_KEY: "", RESEND_API_KEY: "", EMAIL_TRANSPORT: "file", EMAIL_REISSUE_COOLDOWN_SECONDS: "0" },
   },
 });

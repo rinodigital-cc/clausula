@@ -1,6 +1,9 @@
 "use server";
 
 import { notifyProcessor } from "@/lib/processing";
+import { deliverNow } from "@/lib/email/deliver";
+import { workerPool } from "@/lib/db/client";
+import { dispatchEmails, syncDeliveryStatus } from "../../../services/worker/email";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requirePlatformAdmin, requireTenant } from "@/lib/auth/web";
@@ -11,7 +14,7 @@ import { reprocessVersion, setSourceActive, uploadDocument } from "@/lib/domain/
 import { changeMemberRole, inviteMember, removeMember, revokeInvite } from "@/lib/domain/members";
 import { createInsurer, createProduct } from "@/lib/domain/catalog";
 import { dismissGap, resolveGap } from "@/lib/domain/gaps";
-import { createBrokerage, reissueOwnerInvite, setBrokerageStatus, setLeadStatus } from "@/lib/domain/platform";
+import { reissueOwnerInvite, setBrokerageStatus, setLeadStatus } from "@/lib/domain/platform";
 
 /**
  * Mensagem segura para a tela: erros de regra de negócio (Error simples,
@@ -128,10 +131,15 @@ export async function inviteAction(_: ActionState, form: FormData): Promise<Acti
   try {
     const email = s(form, "email");
     const r = await inviteMember(session, { email, role: s(form, "papel") || "member" });
-    await notifyProcessor();
+    const delivery = await deliverNow([r.emailId]);
     revalidatePath("/admin/equipe");
+    const to = email.toLowerCase();
     return {
-      ok: `Convite criado para ${email.toLowerCase()}. Ele vale por 7 dias. Envie o link abaixo para a pessoa (o envio automático de e-mail ainda não está ligado neste ambiente).`,
+      ok: delivery.accepted
+        ? `Convite enviado para ${to}. Ele vale por 7 dias. Se a pessoa não encontrar o e-mail, copie o link abaixo.`
+        : delivery.provider
+          ? `Convite criado para ${to} e na fila de envio (nova tentativa automática). Ele vale por 7 dias; o link abaixo também funciona.`
+          : `Convite criado para ${to}. Ele vale por 7 dias. Este ambiente ainda não envia e-mail: envie o link abaixo para a pessoa.`,
       link: r.link,
       at: Date.now(),
     };
@@ -181,41 +189,30 @@ export async function resolveGapAction(_: ActionState, form: FormData): Promise<
   redirect("/admin/lacunas");
 }
 
-export async function createBrokerageAction(_: ActionState, form: FormData): Promise<ActionState> {
+export async function reissueOwnerAction(_: ActionState, form: FormData): Promise<ActionState> {
   const actor = await requirePlatformAdmin();
   try {
-    const name = s(form, "nome");
-    const r = await createBrokerage(actor, {
-      name,
-      document: s(form, "documento") || undefined,
-      ownerEmail: s(form, "email"),
-      ownerName: s(form, "responsavel") || undefined,
-      insurers: s(form, "seguradoras").split(/[\n,;]+/),
-      joinAsImplementer: form.get("implantador") === "on",
-    });
-    await notifyProcessor();
+    const { link, emailId } = await reissueOwnerInvite(actor, s(form, "corretora"), s(form, "email"));
+    const delivery = await deliverNow([emailId]);
     revalidatePath("/plataforma");
-    return {
-      ok: `Corretora “${name}” criada em modo teste. Envie o link de primeiro acesso ao responsável: ele vale por 7 dias e só funciona uma vez.`,
-      link: r.inviteLink,
-      at: Date.now(),
-    };
+    const ok = delivery.accepted
+      ? "Novo convite enviado: o provedor aceitou o e-mail. O anterior deixou de valer."
+      : delivery.provider
+        ? "Novo convite gerado e na fila de envio (nova tentativa automática). O anterior deixou de valer."
+        : "Novo convite gerado; o anterior deixou de valer. Este ambiente não tem provedor de e-mail: copie o link e envie por um canal seguro.";
+    return { ok, link, at: Date.now() };
   } catch (e) {
     return { error: safeMessage(e) };
   }
 }
 
-export async function reissueOwnerAction(_: ActionState, form: FormData): Promise<ActionState> {
-  const actor = await requirePlatformAdmin();
-  try {
-    const link = await reissueOwnerInvite(actor, s(form, "corretora"), s(form, "email"));
-    await notifyProcessor();
-    await notifyProcessor();
-    revalidatePath("/plataforma");
-    return { ok: "Novo convite gerado. O anterior deixou de valer.", link, at: Date.now() };
-  } catch (e) {
-    return { error: safeMessage(e) };
-  }
+export async function refreshDeliveriesAction(): Promise<void> {
+  await requirePlatformAdmin();
+  await step("/plataforma", "Situação dos envios atualizada com o provedor.", async () => {
+    const pool = workerPool();
+    await dispatchEmails(pool, 10);
+    await syncDeliveryStatus(pool, 10);
+  });
 }
 
 export async function retryProcessingAction(): Promise<void> {

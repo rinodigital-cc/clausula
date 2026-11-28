@@ -1,10 +1,12 @@
 import "server-only";
 import { authClient } from "@/lib/supabase/server";
 import { supabaseAuthEnabled } from "@/lib/supabase/config";
-import { provisionIdentity } from "@/lib/supabase/provision";
+import { authAdmin, provisionIdentity } from "@/lib/supabase/provision";
+import { createHash } from "node:crypto";
+import { deliverNow } from "@/lib/email/deliver";
 import { withBootstrap } from "@/lib/db/client";
 import { hashPassword, hashToken, newToken, passwordProblem } from "@/lib/auth/password";
-import { appUrl, enqueueEmail, passwordResetEmail } from "@/lib/email/outbox";
+import { appUrl, enqueueEmail, passwordChangedEmail, passwordResetEmail } from "@/lib/email/outbox";
 
 const RESET_TTL_MS = 60 * 60 * 1000;
 
@@ -12,19 +14,45 @@ const RESET_TTL_MS = 60 * 60 * 1000;
  * Pedido de redefinição. Resposta idêntica exista ou não o e-mail: a tela
  * não serve para descobrir quem tem conta.
  */
+/** Chave opaca de limite: nunca o e-mail em claro. */
+function limitKey(prefix: string, email: string): string {
+  return `${prefix}:${createHash("sha256").update(email).digest("hex").slice(0, 32)}`;
+}
+
+export const RECOVERY_LIMIT_PER_HOUR = 3;
+
 export async function requestPasswordReset(emailRaw: string): Promise<void> {
   const email = (emailRaw ?? "").trim().toLowerCase();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) return;
   if (supabaseAuthEnabled()) {
     // Resposta genérica inclusive para contas ainda não provisionadas.
     const [user] = await withBootstrap("recuperação Supabase", db =>
       db<{ id: string; email: string }[]>`SELECT id, email::text FROM users WHERE email = ${email} AND deleted_at IS NULL`);
     if (!user) return;
-    if (process.env.SUPABASE_AUTH_SECRET_KEY) await provisionIdentity(user);
+    const [ok] = await withBootstrap("limite de recuperação", db =>
+      db<{ ok: boolean }[]>`SELECT consume_email_limit(${limitKey("recovery", email)}, ${RECOVERY_LIMIT_PER_HOUR}, interval '1 hour') AS ok`);
+    if (!ok?.ok) return; // limite silencioso: a tela responde igual
+    if (process.env.SUPABASE_AUTH_SECRET_KEY) {
+      // Caminho único de envio: o link é gerado pelo Supabase Auth no servidor
+      // e enviado pela caixa de saída (Resend), com o template da Vera.ia.
+      await provisionIdentity(user);
+      const { data, error } = await authAdmin().generateLink({ type: "recovery", email });
+      const hashed = data?.properties?.hashed_token;
+      if (error || !hashed) {
+        console.error(JSON.stringify({ event: "auth_recovery_link_failed", code: error?.code ?? "no_token" }));
+        return;
+      }
+      const link = appUrl(`/auth/callback?token_hash=${encodeURIComponent(hashed)}&type=recovery`);
+      const id = await withBootstrap("e-mail de recuperação", db => enqueueEmail(db, passwordResetEmail({ to: email, link, firstAccess: false })));
+      await deliverNow([id]);
+      return;
+    }
+    // Sem segredo de servidor: o próprio Supabase envia (exige SMTP do Resend configurado no projeto).
     const { error } = await (await authClient()).auth.resetPasswordForEmail(email, { redirectTo: appUrl("/auth/callback") });
     if (error) console.error(JSON.stringify({ event: "auth_recovery_failed", code: error.code }));
     return;
   }
+  let emailId: string | null = null;
   const token = newToken();
   await withBootstrap("pedido de redefinição de senha", (db) =>
     db.begin(async (tx) => {
@@ -39,9 +67,10 @@ export async function requestPasswordReset(emailRaw: string): Promise<void> {
         INSERT INTO password_resets (user_id, token_hash, purpose, expires_at)
         VALUES (${user.id}, ${hashToken(token)}, 'reset', ${new Date(Date.now() + RESET_TTL_MS)})
       `;
-      await enqueueEmail(tx as never, passwordResetEmail({ to: email, link: appUrl(`/redefinir/${token}`), firstAccess: false }));
+      emailId = await enqueueEmail(tx as never, passwordResetEmail({ to: email, link: appUrl(`/redefinir/${token}`), firstAccess: false }));
     }),
   );
+  if (emailId) await deliverNow([emailId]);
 }
 
 export async function checkResetToken(token: string): Promise<boolean> {
@@ -54,6 +83,12 @@ export async function checkResetToken(token: string): Promise<boolean> {
 
 /** Troca a senha, consome o link e derruba TODAS as sessões da pessoa. */
 export async function resetPassword(token: string, password: string): Promise<{ userId: string }> {
+  const result = await resetPasswordInner(token, password);
+  if (result.emailId) await deliverNow([result.emailId]);
+  return { userId: result.userId };
+}
+
+async function resetPasswordInner(token: string, password: string): Promise<{ userId: string; emailId: string | null }> {
   const problem = passwordProblem(password);
   if (problem) throw new Error(problem);
   const supabase = supabaseAuthEnabled() ? await authClient() : null;
@@ -78,7 +113,11 @@ export async function resetPassword(token: string, password: string): Promise<{ 
       await tx`UPDATE users SET password_hash = ${passwordHash}, email_verified_at = coalesce(email_verified_at, now()) WHERE id = ${row.user_id}`;
       await tx`UPDATE password_resets SET used_at = now() WHERE id = ${row.id}`;
       await tx`UPDATE sessions SET revoked_at = now() WHERE user_id = ${row.user_id} AND revoked_at IS NULL`;
-      return { userId: row.user_id };
+      const [who] = await tx<{ email: string }[]>`SELECT email::text AS email FROM users WHERE id = ${row.user_id}`;
+      const emailId = who
+        ? await enqueueEmail(tx as never, passwordChangedEmail({ to: who.email, recoverLink: appUrl("/recuperar"), when: new Date() }))
+        : null;
+      return { userId: row.user_id, emailId };
     }),
-  ) as Promise<{ userId: string }>;
+  ) as Promise<{ userId: string; emailId: string | null }>;
 }
